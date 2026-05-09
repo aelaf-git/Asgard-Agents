@@ -102,7 +102,11 @@ impl Tool for GithubFetcher {
                 .replace('\n', "")
                 .replace('\r', "");
             
-            let decoded = String::from_utf8(base64::decode(content_base64).map_err(|e| GithubToolError(format!("Base64 decode failed: {}", e)))?)
+            use base64::{Engine as _, engine::general_purpose};
+            let decoded_bytes = general_purpose::STANDARD.decode(content_base64)
+                .map_err(|e| GithubToolError(format!("Base64 decode failed: {}", e)))?;
+            
+            let decoded = String::from_utf8(decoded_bytes)
                 .map_err(|e| GithubToolError(format!("UTF-8 decode failed: {}", e)))?;
 
             if decoded.len() > 15000 {
