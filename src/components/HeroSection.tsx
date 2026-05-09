@@ -46,7 +46,7 @@ export default function HeroSection() {
           {/* Stats */}
           <div className="flex items-center justify-center gap-6 md:gap-10 mb-10">
             {[
-              { icon: Bot, label: 'Active Agents', value: '6' },
+              { icon: Bot, label: 'Active Agents', value: '3' },
               { icon: Lock, label: 'Escrow Secured', value: '142 SOL' },
               { icon: Zap, label: 'Avg. Completion', value: '< 8s' },
             ].map(({ icon: Icon, label, value }) => (

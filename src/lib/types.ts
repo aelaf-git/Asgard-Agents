@@ -14,11 +14,9 @@ export interface AgentProfile {
   description: string;
   specialties: string[];
   priceSOL: number;
-  rating: number;
-  completedJobs: number;
   avatar: string;
   status: 'online' | 'busy' | 'offline';
-  category: 'code' | 'creative' | 'analysis' | 'security';
+  category: 'studying' | 'cooking' | 'coding';
   pubkey: string;
 }
 

@@ -7,21 +7,16 @@ import TaskPromptForm from '@/components/TaskPromptForm';
 import ExecutionTerminal from '@/components/ExecutionTerminal';
 import {
   ArrowLeft,
-  Star,
-  Shield,
-  BarChart3,
-  Palette,
+  BookOpen,
+  ChefHat,
   Code,
-  Zap,
-  Clock,
 } from 'lucide-react';
 import type { AgentProfile } from '@/lib/types';
 
 const CATEGORY_CONFIG: Record<AgentProfile['category'], { icon: React.ElementType; color: string }> = {
-  security: { icon: Shield, color: 'text-destructive' },
-  analysis: { icon: BarChart3, color: 'text-primary' },
-  creative: { icon: Palette, color: 'text-neon-magenta' },
-  code: { icon: Code, color: 'text-neon-green' },
+  studying: { icon: BookOpen, color: 'text-primary' },
+  cooking: { icon: ChefHat, color: 'text-amber-400' },
+  coding: { icon: Code, color: 'text-neon-green' },
 };
 
 export default function AgentDetail() {
@@ -96,27 +91,6 @@ export default function AgentDetail() {
               <p className="text-sm text-secondary-foreground leading-relaxed mb-5">
                 {agent.description}
               </p>
-
-              {/* Stats */}
-              <div className="grid grid-cols-3 gap-3 mb-5">
-                <div className="flex flex-col items-center p-3 rounded-lg bg-secondary border border-border">
-                  <Star className="h-4 w-4 text-primary mb-1" />
-                  <span className="font-mono text-sm font-bold text-foreground">{agent.rating}</span>
-                  <span className="font-mono text-[10px] text-muted-foreground">Rating</span>
-                </div>
-                <div className="flex flex-col items-center p-3 rounded-lg bg-secondary border border-border">
-                  <Zap className="h-4 w-4 text-neon-green mb-1" />
-                  <span className="font-mono text-sm font-bold text-foreground">
-                    {agent.completedJobs.toLocaleString()}
-                  </span>
-                  <span className="font-mono text-[10px] text-muted-foreground">Jobs</span>
-                </div>
-                <div className="flex flex-col items-center p-3 rounded-lg bg-secondary border border-border">
-                  <Clock className="h-4 w-4 text-primary mb-1" />
-                  <span className="font-mono text-sm font-bold text-foreground">~7s</span>
-                  <span className="font-mono text-[10px] text-muted-foreground">Avg Time</span>
-                </div>
-              </div>
 
               {/* Specialties */}
               <div className="mb-5">

@@ -1,15 +1,14 @@
 import React from 'react';
-import { Shield, BarChart3, Palette, Code, Grid3x3 } from 'lucide-react';
+import { Grid3x3, BookOpen, ChefHat, Code } from 'lucide-react';
 import { AgentProfile } from '@/lib/types';
 
 type Category = AgentProfile['category'] | 'all';
 
 const CATEGORIES: { value: Category; label: string; icon: React.ElementType }[] = [
   { value: 'all', label: 'All Agents', icon: Grid3x3 },
-  { value: 'code', label: 'Code', icon: Code },
-  { value: 'security', label: 'Security', icon: Shield },
-  { value: 'analysis', label: 'Analysis', icon: BarChart3 },
-  { value: 'creative', label: 'Creative', icon: Palette },
+  { value: 'studying', label: 'Studying', icon: BookOpen },
+  { value: 'cooking', label: 'Cooking', icon: ChefHat },
+  { value: 'coding', label: 'Coding', icon: Code },
 ];
 
 interface CategoryFilterProps {

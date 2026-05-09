@@ -1,13 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { AgentProfile } from '@/lib/types';
-import { Shield, BarChart3, Palette, Code, Star, ArrowUpRight } from 'lucide-react';
+import { BookOpen, ChefHat, Code, ArrowUpRight } from 'lucide-react';
 
 const CATEGORY_CONFIG: Record<AgentProfile['category'], { icon: React.ElementType; color: string; label: string }> = {
-  security: { icon: Shield, color: 'text-destructive', label: 'Security' },
-  analysis: { icon: BarChart3, color: 'text-primary', label: 'Analysis' },
-  creative: { icon: Palette, color: 'text-neon-magenta', label: 'Creative' },
-  code: { icon: Code, color: 'text-neon-green', label: 'Code' },
+  studying: { icon: BookOpen, color: 'text-primary', label: 'Studying' },
+  cooking: { icon: ChefHat, color: 'text-amber-400', label: 'Cooking' },
+  coding: { icon: Code, color: 'text-neon-green', label: 'Coding' },
 };
 
 interface AgentCardProps {
@@ -77,12 +76,6 @@ export default function AgentCard({ agent, index }: AgentCardProps) {
               <CatIcon className={`h-3 w-3 ${cat.color}`} />
               <span className="text-[10px] font-mono text-muted-foreground uppercase">
                 {cat.label}
-              </span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Star className="h-3 w-3 text-primary" />
-              <span className="text-[10px] font-mono text-foreground">
-                {agent.rating}
               </span>
             </div>
           </div>
