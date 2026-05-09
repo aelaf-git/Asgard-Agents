@@ -4,7 +4,7 @@ import { AnchorProvider } from '@coral-xyz/anchor';
 import { AigentEscrowSDK } from '@/lib/aigentEscrow';
 
 /**
- * Custom hook to interact with the AIGENT Escrow program.
+ * Custom hook to interact with the Asgard Escrow program.
  * 
  * Provides the SDK instance when wallet is connected,
  * with methods for initializeJob, completeJob, cancelJob,

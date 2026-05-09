@@ -8,8 +8,9 @@ from sse_starlette.sse import EventSourceResponse
 
 from agents.nexus.agent import stream_nexus_task
 from agents.teacher.agent import stream_teacher_task
+from agents.idunn.agent import stream_idunn_task
 
-app = FastAPI(title="AIGENT Python Microservice")
+app = FastAPI(title="Asgard Agents Python Microservice")
 
 @app.post("/api/execute")
 async def execute_job(
@@ -20,21 +21,25 @@ async def execute_job(
 ):
     async def event_generator():
         try:
-            if agent_id == "nexus":
+            if agent_id == "heimdall":
                 async for chunk in stream_nexus_task(prompt):
                     yield {"data": chunk}
-                    
-            elif agent_id == "teacher":
+
+            elif agent_id == "odin":
                 if file:
                     pdf_bytes = await file.read()
                 else:
                     pdf_bytes = None
-                    
+
                 async for chunk in stream_teacher_task(prompt, pdf_bytes, job_id):
                     yield {"data": chunk}
-                    
+
+            elif agent_id == "idunn":
+                async for chunk in stream_idunn_task(prompt):
+                    yield {"data": chunk}
+
             else:
-                yield {"data": f"Error: Unknown agent '{agent_id}'. Available agents: nexus, teacher"}
+                yield {"data": f"Error: Unknown agent '{agent_id}'. Available agents: heimdall, odin, idunn"}
                 return
                 
         except Exception as e:
@@ -45,8 +50,9 @@ async def execute_job(
 @app.get("/api/agents")
 async def list_agents():
     return {"agents": [
-        {"id": "nexus", "name": "Nexus", "description": "Principal System Architect"},
-        {"id": "teacher", "name": "Teacher", "description": "RAG-based Tutor (Requires PDF)"}
+        {"id": "heimdall", "name": "Heimdall", "description": "Coding Agent — System Architect"},
+        {"id": "odin", "name": "Odin", "description": "Studying Agent — RAG Tutor (Requires PDF)"},
+        {"id": "idunn", "name": "Idunn", "description": "Cooking Agent — Recipes & Meal Plans"}
     ]}
 
 if __name__ == "__main__":

@@ -22,10 +22,10 @@ export default function Header() {
           </div>
           <div className="flex flex-col">
             <span className="font-mono text-sm font-bold tracking-wider text-foreground">
-              AIGENT
+              Asgard Agents
             </span>
             <span className="hidden md:block text-[10px] font-mono text-muted-foreground tracking-widest uppercase">
-              DeAI Marketplace
+              AI Marketplace
             </span>
           </div>
         </Link>

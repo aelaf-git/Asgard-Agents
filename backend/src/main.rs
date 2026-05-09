@@ -1,4 +1,4 @@
-//! AIGENT Backend — Decentralized AI Agent Executioner Service
+//! Asgard Agents Backend — AI Agent Executioner Service
 //!
 //! This Rust/Axum server acts as the "Agent Executioner" bridge between
 //! the frontend and the Solana blockchain. It:
@@ -47,7 +47,7 @@ async fn main() -> anyhow::Result<()> {
     dotenvy::dotenv().ok();
     let config = AppConfig::from_env()?;
 
-    tracing::info!("AIGENT Backend v{}", env!("CARGO_PKG_VERSION"));
+    tracing::info!("Asgard Agents Backend v{}", env!("CARGO_PKG_VERSION"));
     tracing::info!("Program ID: {}", config.program_id);
     tracing::info!("AI Provider: {:?}", config.ai_provider);
     tracing::info!("RPC: {}", config.solana_rpc_url);

@@ -100,7 +100,7 @@ interface ExecutionTerminalProps {
 }
 
 // ─────────────────────────────────────────────
-// TEACHER CHAT UI
+// ODIN CHAT UI
 // ─────────────────────────────────────────────
 function TeacherChatUI({ onBack, onNewSession }: { onBack?: () => void; onNewSession: () => void }) {
   const { activeJob } = useJobs();
@@ -144,7 +144,7 @@ function TeacherChatUI({ onBack, onNewSession }: { onBack?: () => void; onNewSes
         });
       });
     } catch (err) {
-      console.error('[TEACHER] Chat error:', err);
+      console.error('[Odin] Chat error:', err);
       setMessages(prev => {
         const updated = [...prev];
         const last = updated[updated.length - 1];
@@ -278,7 +278,7 @@ function TeacherChatUI({ onBack, onNewSession }: { onBack?: () => void; onNewSes
 }
 
 // ─────────────────────────────────────────────
-// STANDARD AGENT TERMINAL (NEXUS etc.)
+// STANDARD AGENT TERMINAL
 // ─────────────────────────────────────────────
 function StandardTerminal({ onBack }: { onBack?: () => void }) {
   const { activeJob, executionSteps, isExecuting, clearActiveJob, finalizeJob } = useJobs();
@@ -308,7 +308,7 @@ function StandardTerminal({ onBack }: { onBack?: () => void }) {
               <div className="h-2.5 w-2.5 rounded-full bg-neon-green/60" />
             </div>
             <span className="font-mono text-[11px] text-muted-foreground tracking-wider">
-              AIGENT TERMINAL — {activeJob.agent.name}
+              ASGARD TERMINAL — {activeJob.agent.name}
             </span>
           </div>
           <span className={`font-mono text-[10px] tracking-wider uppercase px-2 py-0.5 rounded border ${
@@ -454,7 +454,7 @@ export default function ExecutionTerminal({ onBack }: ExecutionTerminalProps) {
     );
   }
 
-  const isTeacher = activeJob.agent.id === 'teacher';
+  const isTeacher = activeJob.agent.id === 'odin';
 
   if (isTeacher) {
     const handleNewSession = () => {

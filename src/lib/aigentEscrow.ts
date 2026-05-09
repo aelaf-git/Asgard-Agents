@@ -212,7 +212,7 @@ export class AigentEscrowSDK {
         },
       };
     } catch (error) {
-      console.error("[AIGENT SDK] initializeJob failed:", error);
+      console.error("[Asgard SDK] initializeJob failed:", error);
       return { success: false, error: error instanceof Error ? error.message : "Job initialization failed" };
     }
   }
@@ -247,7 +247,7 @@ export class AigentEscrowSDK {
 
       return { success: true, data: { signature: tx } };
     } catch (error) {
-      console.error("[AIGENT SDK] completeJob failed:", error);
+      console.error("[Asgard SDK] completeJob failed:", error);
       return { success: false, error: error instanceof Error ? error.message : "Job completion failed" };
     }
   }
@@ -277,7 +277,7 @@ export class AigentEscrowSDK {
 
       return { success: true, data: { signature: tx } };
     } catch (error) {
-      console.error("[AIGENT SDK] cancelJob failed:", error);
+      console.error("[Asgard SDK] cancelJob failed:", error);
       return { success: false, error: error instanceof Error ? error.message : "Job cancellation failed" };
     }
   }

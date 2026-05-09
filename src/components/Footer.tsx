@@ -12,7 +12,7 @@ export default function Footer() {
               <Bot className="h-4 w-4 text-primary" />
             </div>
             <span className="font-mono text-xs tracking-wider text-foreground font-bold">
-              AIGENT
+              Asgard Agents
             </span>
             <span className="font-mono text-[10px] text-muted-foreground">
               v1.0.0
@@ -49,7 +49,7 @@ export default function Footer() {
 
           {/* Copyright */}
           <p className="font-mono text-[10px] text-muted-foreground tracking-wider">
-            Built on Solana. Powered by DeAI.
+            Built on Solana.
           </p>
         </div>
       </div>

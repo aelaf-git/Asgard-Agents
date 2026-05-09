@@ -89,7 +89,7 @@ export function JobProvider({ children }: { children: ReactNode }) {
         setJobs((prev) => prev.map((j) => (j.id === jobId ? reviewJob : j)));
 
         // Auto-approve escrow for Teacher agent immediately after indexing
-        if (agent.id === 'teacher') {
+        if (agent.id === 'odin') {
           try {
             const signature = await import('./agentService').then(m => m.finalizeAgentJob(jobId, publicKey.toString(), true));
             const finalizedJob: Job = {
@@ -100,13 +100,13 @@ export function JobProvider({ children }: { children: ReactNode }) {
             setActiveJob(finalizedJob);
             setJobs((prev) => prev.map((j) => (j.id === jobId ? finalizedJob : j)));
           } catch (e) {
-            console.warn('[AIGENT] Auto-approve for Teacher failed (devnet may be offline):', e);
+            console.warn('[Asgard] Auto-approve for Odin failed (devnet may be offline):', e);
             // Non-fatal — teacher chat will still work
           }
         }
 
       } catch (error) {
-        console.error('[AIGENT] Job failed:', error);
+        console.error('[Asgard] Job failed:', error);
         setIsExecuting(false);
       } finally {
         setIsExecuting(false);
@@ -132,7 +132,7 @@ export function JobProvider({ children }: { children: ReactNode }) {
       setActiveJob(finalizedJob);
       setJobs(prev => prev.map(j => j.id === activeJob.id ? finalizedJob : j));
     } catch (error) {
-      console.error('[AIGENT] Finalization failed:', error);
+      console.error('[Asgard] Finalization failed:', error);
       alert(`Finalization failed: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setIsExecuting(false);

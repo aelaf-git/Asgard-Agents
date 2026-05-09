@@ -109,7 +109,7 @@ export async function executeAgentTask(
     return { result: fullResult, resultHash };
 
   } catch (error) {
-    console.error("[AIGENT Bridge] Error:", error);
+    console.error("[Asgard Bridge] Error:", error);
     throw error;
   }
 }

@@ -2,7 +2,7 @@
 name = "aigent-backend"
 version = "0.1.0"
 edition = "2021"
-description = "AIGENT - Decentralized AI Agent Executioner Service (Rust/Axum)"
+description = "Asgard Agents - AI Agent Executioner Service (Rust/Axum)"
 license = "MIT"
 
 [dependencies]

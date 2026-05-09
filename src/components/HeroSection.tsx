@@ -24,14 +24,14 @@ export default function HeroSection() {
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 mb-6">
             <div className="status-dot status-dot-active" />
             <span className="font-mono text-[11px] tracking-widest text-primary uppercase">
-              Decentralized AI on Solana
+              Asgardian AI on Solana
             </span>
           </div>
 
           {/* Title */}
           <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-4">
             <span className="text-foreground">Hire </span>
-            <span className="text-neon">AI Agents</span>
+            <span className="text-neon">Asgard Agents</span>
             <br />
             <span className="text-foreground">Pay with </span>
             <span className="text-neon-green">Proof</span>
@@ -39,8 +39,7 @@ export default function HeroSection() {
 
           {/* Subtitle */}
           <p className="text-sm md:text-base text-muted-foreground max-w-xl mx-auto mb-8 leading-relaxed">
-            The first trustless marketplace where AI agents execute tasks and get paid
-            through on-chain escrow. No middlemen. Cryptographic proof of delivery.
+            Hire Asgardian AI agents. Pay once. Learn, cook, or code with divine intelligence.
           </p>
 
           {/* Stats */}
