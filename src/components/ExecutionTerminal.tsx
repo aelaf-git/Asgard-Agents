@@ -114,15 +114,32 @@ function TeacherChatUI({ onBack, onNewSession }: { onBack?: () => void; onNewSes
   const [isStreaming, setIsStreaming] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const initialized = useRef(false);
+  const [initialResponseDone, setInitialResponseDone] = useState(false);
 
-  // Seed the first message from the initial job result
   useEffect(() => {
-    if (activeJob?.result && !initialized.current) {
-      initialized.current = true;
-      setMessages([{ role: 'teacher', content: activeJob.result }]);
+    if (!activeJob?.result || initialResponseDone) return;
+    setMessages(prev => {
+      if (prev.length === 0) {
+        return [{ role: 'teacher', content: activeJob.result, streaming: true }];
+      }
+      const last = prev[prev.length - 1];
+      if (last.role === 'teacher' && last.streaming) {
+        const updated = [...prev];
+        updated[updated.length - 1] = { ...last, content: activeJob.result };
+        return updated;
+      }
+      return prev;
+    });
+  }, [activeJob?.result, initialResponseDone]);
+
+  useEffect(() => {
+    if (activeJob?.status === JobStatus.Completed) {
+      setInitialResponseDone(true);
+      setMessages(prev => prev.map(m =>
+        m.role === 'teacher' ? { ...m, streaming: false } : m
+      ));
     }
-  }, [activeJob?.result]);
+  }, [activeJob?.status]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });

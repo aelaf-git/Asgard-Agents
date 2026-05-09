@@ -75,6 +75,7 @@ export function JobProvider({ children }: { children: ReactNode }) {
           file,
           updateStep,
           (chunk) => {
+            setRagProgress(null);
             setActiveJob(prev => prev ? { ...prev, result: (prev.result || "") + chunk } : null);
           },
           (progress) => setRagProgress(progress)

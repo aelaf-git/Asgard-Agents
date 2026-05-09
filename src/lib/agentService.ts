@@ -84,7 +84,7 @@ export async function executeAgentTask(
                 if (p.type === 'progress' && onProgress) {
                   onProgress({ step: p.step, pct: p.pct });
                 }
-              } catch (e) {}
+              } catch { /* non-critical: ignore malformed progress JSON */ }
               continue;
             }
 

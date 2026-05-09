@@ -10,8 +10,9 @@ interface TaskPromptFormProps {
   onJobCreated: () => void;
 }
 
+const DEFAULT_PROMPT = "Summarize this document and explain its key concepts.";
+
 export default function TaskPromptForm({ agent, onJobCreated }: TaskPromptFormProps) {
-  const [prompt, setPrompt] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [dragOver, setDragOver] = useState(false);
@@ -22,8 +23,7 @@ export default function TaskPromptForm({ agent, onJobCreated }: TaskPromptFormPr
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    const finalPrompt = prompt.trim();
-    if (!finalPrompt || !connected || isExecuting) return;
+    if (!connected || isExecuting) return;
     if (!file) {
       alert("Please upload a PDF document first.");
       return;
@@ -31,7 +31,7 @@ export default function TaskPromptForm({ agent, onJobCreated }: TaskPromptFormPr
 
     setIsSubmitting(true);
     try {
-      await createJob(agent, finalPrompt, agent.priceSOL, file);
+      await createJob(agent, DEFAULT_PROMPT, agent.priceSOL, file);
       onJobCreated();
     } finally {
       setIsSubmitting(false);
@@ -98,23 +98,11 @@ export default function TaskPromptForm({ agent, onJobCreated }: TaskPromptFormPr
         )}
       </div>
 
-      {/* Question Input */}
-      <div className="space-y-1.5">
-        <textarea
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          placeholder="What would you like to learn from this document?"
-          rows={3}
-          className="w-full px-4 py-3 rounded-xl bg-void border border-border text-foreground text-sm placeholder:text-muted-foreground/50 resize-none focus:border-primary/60 focus:ring-1 focus:ring-primary/30 transition-all"
-          disabled={isSubmitting}
-        />
-      </div>
-
       {/* Submit */}
       {connected ? (
         <button
           type="submit"
-          disabled={!prompt.trim() || !file || isSubmitting || isExecuting}
+          disabled={!file || isSubmitting || isExecuting}
           className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-primary text-primary-foreground font-mono text-sm tracking-wider font-bold hover:shadow-neon transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:shadow-none"
         >
           {isSubmitting ? (

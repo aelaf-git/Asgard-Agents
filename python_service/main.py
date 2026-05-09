@@ -25,7 +25,7 @@ async def execute_job(
                 async for chunk in stream_heimdall_task(prompt):
                     yield {"data": chunk}
 
-            elif agent_id == "odin":
+            elif agent_id in ("teacher", "odin"):
                 if file:
                     pdf_bytes = await file.read()
                 else:

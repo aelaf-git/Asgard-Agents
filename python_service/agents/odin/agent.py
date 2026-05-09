@@ -52,35 +52,43 @@ async def stream_odin_task(prompt: str, pdf_bytes: bytes | None, job_id: str) ->
             temp_pdf.write(pdf_bytes)
             temp_pdf_path = temp_pdf.name
 
+        import asyncio
+
         try:
-            yield json.dumps({"type": "progress", "step": "Reading PDF pages...", "pct": 10}) + "\n"
+            yield json.dumps({"type": "progress", "step": "Reading PDF pages...", "pct": 10})
 
+            # Run blocking IO in a thread so SSE can flush
             loader = PyPDFLoader(temp_pdf_path)
-            docs = loader.load()
+            docs = await asyncio.to_thread(loader.load)
 
-            yield json.dumps({"type": "progress", "step": "Splitting text into chunks...", "pct": 35}) + "\n"
+            if not docs:
+                yield "Error: Could not extract any text from the uploaded PDF. Please try a different file."
+                return
+
+            yield json.dumps({"type": "progress", "step": "Splitting text into chunks...", "pct": 35})
 
             text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-            splits = text_splitter.split_documents(docs)
+            splits = await asyncio.to_thread(text_splitter.split_documents, docs)
 
-            yield json.dumps({"type": "progress", "step": "Building vector index with embeddings...", "pct": 60}) + "\n"
+            yield json.dumps({"type": "progress", "step": "Building vector index with embeddings...", "pct": 60})
 
+            # Embedding + FAISS build is the slowest step — run in thread
             embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-            vectorstore = FAISS.from_documents(documents=splits, embedding=embeddings)
+            vectorstore = await asyncio.to_thread(FAISS.from_documents, splits, embeddings)
 
             # Save to global memory
             SESSION_INDEXES[job_id] = vectorstore
             SESSION_HISTORY[job_id] = []
 
-            yield json.dumps({"type": "progress", "step": "Generating answer from document...", "pct": 85}) + "\n"
+            yield json.dumps({"type": "progress", "step": "Generating answer from document...", "pct": 85})
 
             # First prompt processing
             retriever = vectorstore.as_retriever(search_kwargs={"k": 4})
             chat_prompt = ChatPromptTemplate.from_template(ODIN_PROMPT_TEMPLATE)
-            
+
             def format_docs(docs):
                 return "\n\n".join(doc.page_content for doc in docs)
-            
+
             rag_chain = (
                 {"context": retriever | format_docs, "history": lambda x: "", "question": RunnablePassthrough()}
                 | chat_prompt
@@ -89,12 +97,14 @@ async def stream_odin_task(prompt: str, pdf_bytes: bytes | None, job_id: str) ->
             )
 
             full_response = ""
+            first_chunk = True
             async for chunk in rag_chain.astream(prompt):
-                if not full_response:
-                    yield json.dumps({"type": "progress", "step": "Complete", "pct": 100}) + "\n"
+                if first_chunk:
+                    yield json.dumps({"type": "progress", "step": "Complete", "pct": 100})
+                    first_chunk = False
                 full_response += chunk
                 yield chunk
-                
+
             SESSION_HISTORY[job_id].append(HumanMessage(content=prompt))
             SESSION_HISTORY[job_id].append(AIMessage(content=full_response))
 
