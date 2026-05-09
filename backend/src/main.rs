@@ -76,6 +76,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/health", get(routes::health::health_check))
         .route("/api/agent/info", get(routes::agent::agent_info))
         .route("/api/job/execute", post(routes::job::execute_job))
+        .route("/api/job/chat", post(routes::job::chat_job))
         .route("/api/job/status/:job_id", get(routes::job::job_status))
         .route("/api/job/finalize", post(routes::job::finalize_job))
         .layer(cors)

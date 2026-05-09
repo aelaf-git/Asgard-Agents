@@ -144,3 +144,57 @@ pub async fn job_status(
         completed_at: None,
     })
 }
+
+/// POST /api/job/chat — Send a follow-up chat message (No escrow logic)
+pub async fn chat_job(
+    State(state): State<Arc<AppState>>,
+    mut multipart: Multipart,
+) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, AppError> {
+    let mut job_id = String::new();
+    let mut agent_id = String::new();
+    let mut prompt = String::new();
+
+    while let Some(field) = multipart.next_field().await.map_err(|e| AppError::BadRequest(e.to_string()))? {
+        let name = field.name().unwrap_or("").to_string();
+        let text = field.text().await.unwrap_or_default();
+        match name.as_str() {
+            "job_id" => job_id = text,
+            "agent_id" => agent_id = text,
+            "prompt" => prompt = text,
+            _ => {}
+        }
+    }
+
+    if prompt.is_empty() || job_id.is_empty() {
+        return Err(AppError::BadRequest("Missing job_id or prompt".into()));
+    }
+
+    tracing::info!("Streaming chat for job {}", job_id);
+
+    let mut stream = state.ai_service.process_task_stream(&job_id, &agent_id, &prompt, None).await?;
+
+    let (tx, rx) = tokio::sync::mpsc::channel(100);
+
+    tokio::spawn(async move {
+        while let Some(chunk_result) = stream.next().await {
+            match chunk_result {
+                Ok(chunk) => {
+                    let _ = tx.send(Ok(Event::default().data(chunk))).await;
+                }
+                Err(e) => {
+                    let _ = tx.send(Ok(Event::default().event("error").data(e.to_string()))).await;
+                    return;
+                }
+            }
+        }
+        
+        let done_payload = serde_json::json!({
+            "job_id": job_id,
+            "hash": "chat_response"
+        }).to_string();
+        
+        let _ = tx.send(Ok(Event::default().event("done").data(done_payload))).await;
+    });
+
+    Ok(Sse::new(tokio_stream::wrappers::ReceiverStream::new(rx)))
+}

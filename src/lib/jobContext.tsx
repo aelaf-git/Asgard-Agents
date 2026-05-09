@@ -82,11 +82,28 @@ export function JobProvider({ children }: { children: ReactNode }) {
           ...newJob,
           result,
           resultHash,
-          status: JobStatus.Completed, // UI will check for 'review' state if we added it, but let's use Completed
+          status: JobStatus.Completed,
         };
 
         setActiveJob(reviewJob);
         setJobs((prev) => prev.map((j) => (j.id === jobId ? reviewJob : j)));
+
+        // Auto-approve escrow for Teacher agent immediately after indexing
+        if (agent.id === 'teacher') {
+          try {
+            const signature = await import('./agentService').then(m => m.finalizeAgentJob(jobId, publicKey.toString(), true));
+            const finalizedJob: Job = {
+              ...reviewJob,
+              completeTxSignature: signature,
+              completedAt: Date.now(),
+            };
+            setActiveJob(finalizedJob);
+            setJobs((prev) => prev.map((j) => (j.id === jobId ? finalizedJob : j)));
+          } catch (e) {
+            console.warn('[AIGENT] Auto-approve for Teacher failed (devnet may be offline):', e);
+            // Non-fatal — teacher chat will still work
+          }
+        }
 
       } catch (error) {
         console.error('[AIGENT] Job failed:', error);

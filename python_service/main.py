@@ -25,12 +25,12 @@ async def execute_job(
                     yield {"data": chunk}
                     
             elif agent_id == "teacher":
-                if not file:
-                    yield {"data": "Error: Teacher agent requires a PDF file upload."}
-                    return
-                
-                pdf_bytes = await file.read()
-                async for chunk in stream_teacher_task(prompt, pdf_bytes):
+                if file:
+                    pdf_bytes = await file.read()
+                else:
+                    pdf_bytes = None
+                    
+                async for chunk in stream_teacher_task(prompt, pdf_bytes, job_id):
                     yield {"data": chunk}
                     
             else:
