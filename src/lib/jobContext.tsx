@@ -1,6 +1,8 @@
-import React, { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
 import { Job, JobStatus, ExecutionStep, AgentProfile } from './types';
 import { executeAgentTask } from './agentService';
+import { useSolanaProgram } from '@/hooks/useSolanaProgram';
+import { PublicKey } from '@solana/web3.js';
 
 interface JobContextType {
   jobs: Job[];
@@ -22,24 +24,12 @@ const INITIAL_STEPS: ExecutionStep[] = [
   { id: 'complete', label: 'Release Payment', status: 'pending' },
 ];
 
-function generateJobId(): string {
-  return `job_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function generateTxSignature(): string {
-  const chars = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-  let sig = '';
-  for (let i = 0; i < 88; i++) {
-    sig += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return sig;
-}
-
 export function JobProvider({ children }: { children: ReactNode }) {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [activeJob, setActiveJob] = useState<Job | null>(null);
   const [executionSteps, setExecutionSteps] = useState<ExecutionStep[]>(INITIAL_STEPS);
   const [isExecuting, setIsExecuting] = useState(false);
+  const { sdk, publicKey } = useSolanaProgram();
 
   const updateStep = useCallback((index: number, status: ExecutionStep['status'], detail?: string) => {
     setExecutionSteps((prev) =>
@@ -53,41 +43,66 @@ export function JobProvider({ children }: { children: ReactNode }) {
 
   const createJob = useCallback(
     async (agent: AgentProfile, prompt: string, amount: number) => {
-      const jobId = generateJobId();
-      const txSig = generateTxSignature();
+      if (!sdk || !publicKey) {
+        throw new Error("Wallet not connected");
+      }
 
-      const newJob: Job = {
-        id: jobId,
-        employer: null,
-        agent,
-        amount,
-        status: JobStatus.Created,
-        taskHash: `0x${Date.now().toString(16)}`,
-        resultHash: null,
-        prompt,
-        result: null,
-        createdAt: Date.now(),
-        completedAt: null,
-        txSignature: txSig,
-        completeTxSignature: null,
-      };
+      const jobId = sdk.generateJobId();
+      
+      // We need a task hash (SHA-256). For now we'll use a simple mock hash or just the prompt length
+      // In a real app, you'd use a real hash.
+      const taskHash = `task_${Date.now().toString(16)}`; 
 
-      setJobs((prev) => [newJob, ...prev]);
-      setActiveJob(newJob);
       setExecutionSteps(INITIAL_STEPS.map((s) => ({ ...s, status: 'pending' as const, detail: undefined, timestamp: undefined })));
       setIsExecuting(true);
 
       try {
-        // Update job status to processing
-        setActiveJob((prev) => prev ? { ...prev, status: JobStatus.Processing } : null);
+        // Step 0: Initialize Job on Solana
+        updateStep(0, 'active', 'Initializing on-chain escrow...');
+        
+        const initResult = await sdk.initializeJob({
+          amount,
+          taskHash,
+          agent: new PublicKey(agent.pubkey),
+          timeoutSeconds: 3600, // 1 hour timeout
+          jobId
+        });
 
-        const { result, resultHash, processingTime } = await executeAgentTask(
+        if (!initResult.success) {
+          throw new Error(initResult.error || "Failed to initialize job on Solana");
+        }
+
+        const txSig = initResult.data!.signature;
+        updateStep(0, 'completed', `Escrow locked: ${txSig.slice(0, 8)}...`);
+
+        const newJob: Job = {
+          id: jobId,
+          employer: publicKey,
+          agent,
+          amount,
+          status: JobStatus.Processing,
+          taskHash,
+          resultHash: null,
+          prompt,
+          result: null,
+          createdAt: Date.now(),
+          completedAt: null,
+          txSignature: txSig,
+          completeTxSignature: null,
+        };
+
+        setJobs((prev) => [newJob, ...prev]);
+        setActiveJob(newJob);
+
+        // Call Backend Bridge
+        const { result, resultHash, processingTime, signature } = await executeAgentTask(
           agent,
           prompt,
+          jobId,
+          publicKey.toString(),
+          amount,
           updateStep
         );
-
-        const completeTxSig = generateTxSignature();
 
         const completedJob: Job = {
           ...newJob,
@@ -95,7 +110,7 @@ export function JobProvider({ children }: { children: ReactNode }) {
           result,
           resultHash,
           completedAt: Date.now(),
-          completeTxSignature: completeTxSig,
+          completeTxSignature: signature || null,
         };
 
         setActiveJob(completedJob);
@@ -103,22 +118,26 @@ export function JobProvider({ children }: { children: ReactNode }) {
           prev.map((j) => (j.id === jobId ? completedJob : j))
         );
 
-        console.log(`[AIGENT] Job ${jobId} completed in ${processingTime}ms`);
+        console.log(`[AIGENT] Job ${jobId} completed and settled in ${processingTime}ms`);
       } catch (error) {
         console.error('[AIGENT] Job execution failed:', error);
         setActiveJob((prev) =>
           prev ? { ...prev, status: JobStatus.Cancelled } : null
         );
-        updateStep(
-          executionSteps.findIndex((s) => s.status === 'active'),
-          'error',
-          'Execution failed'
-        );
+        
+        // Find current active step and mark as error
+        setExecutionSteps(prev => {
+          const activeIndex = prev.findIndex(s => s.status === 'active');
+          if (activeIndex !== -1) {
+            return prev.map((s, i) => i === activeIndex ? { ...s, status: 'error', detail: error instanceof Error ? error.message : 'Execution failed' } : s);
+          }
+          return prev;
+        });
       } finally {
         setIsExecuting(false);
       }
     },
-    [updateStep, executionSteps]
+    [sdk, publicKey, updateStep]
   );
 
   const cancelJob = useCallback((jobId: string) => {

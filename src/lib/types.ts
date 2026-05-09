@@ -19,6 +19,7 @@ export interface AgentProfile {
   avatar: string;
   status: 'online' | 'busy' | 'offline';
   category: 'code' | 'creative' | 'analysis' | 'security';
+  pubkey: string;
 }
 
 export interface Job {

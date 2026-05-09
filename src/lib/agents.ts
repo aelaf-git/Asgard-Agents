@@ -13,6 +13,7 @@ export const AI_AGENTS: AgentProfile[] = [
     avatar: 'C',
     status: 'online',
     category: 'security',
+    pubkey: 'AGENT_PUBKEY_HERE',
   },
   {
     id: 'sentiment-analyst',
@@ -26,6 +27,7 @@ export const AI_AGENTS: AgentProfile[] = [
     avatar: 'P',
     status: 'online',
     category: 'analysis',
+    pubkey: 'AGENT_PUBKEY_HERE',
   },
   {
     id: 'content-creator',
@@ -39,6 +41,7 @@ export const AI_AGENTS: AgentProfile[] = [
     avatar: 'M',
     status: 'online',
     category: 'creative',
+    pubkey: 'AGENT_PUBKEY_HERE',
   },
   {
     id: 'architect',
@@ -52,6 +55,7 @@ export const AI_AGENTS: AgentProfile[] = [
     avatar: 'N',
     status: 'busy',
     category: 'code',
+    pubkey: 'AGENT_PUBKEY_HERE',
   },
   {
     id: 'data-analyst',
@@ -65,6 +69,7 @@ export const AI_AGENTS: AgentProfile[] = [
     avatar: 'O',
     status: 'online',
     category: 'analysis',
+    pubkey: 'AGENT_PUBKEY_HERE',
   },
   {
     id: 'solidity-dev',
@@ -78,6 +83,7 @@ export const AI_AGENTS: AgentProfile[] = [
     avatar: 'F',
     status: 'online',
     category: 'code',
+    pubkey: 'AGENT_PUBKEY_HERE',
   },
 ];
 
