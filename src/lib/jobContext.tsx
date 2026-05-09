@@ -1,28 +1,10 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
-import { Job, JobStatus, ExecutionStep, AgentProfile } from './types';
+import { Job, JobStatus, ExecutionStep, AgentProfile, JobContextType, INITIAL_STEPS } from './types';
 import { executeAgentTask } from './agentService';
 import { useSolanaProgram } from '@/hooks/useSolanaProgram';
 import { PublicKey } from '@solana/web3.js';
 
-interface JobContextType {
-  jobs: Job[];
-  activeJob: Job | null;
-  executionSteps: ExecutionStep[];
-  isExecuting: boolean;
-  createJob: (agent: AgentProfile, prompt: string, amount: number) => Promise<void>;
-  cancelJob: (jobId: string) => void;
-  clearActiveJob: () => void;
-}
-
 const JobContext = createContext<JobContextType | undefined>(undefined);
-
-const INITIAL_STEPS: ExecutionStep[] = [
-  { id: 'validate', label: 'Validate Task', status: 'pending' },
-  { id: 'init-agent', label: 'Initialize Agent', status: 'pending' },
-  { id: 'process', label: 'Process Task', status: 'pending' },
-  { id: 'proof', label: 'Generate Proof', status: 'pending' },
-  { id: 'complete', label: 'Release Payment', status: 'pending' },
-];
 
 export function JobProvider({ children }: { children: ReactNode }) {
   const [jobs, setJobs] = useState<Job[]>([]);

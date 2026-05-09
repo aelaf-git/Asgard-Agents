@@ -45,3 +45,21 @@ export interface ExecutionStep {
   detail?: string;
   timestamp?: number;
 }
+
+export interface JobContextType {
+  jobs: Job[];
+  activeJob: Job | null;
+  executionSteps: ExecutionStep[];
+  isExecuting: boolean;
+  createJob: (agent: AgentProfile, prompt: string, amount: number) => Promise<void>;
+  cancelJob: (jobId: string) => void;
+  clearActiveJob: () => void;
+}
+
+export const INITIAL_STEPS: ExecutionStep[] = [
+  { id: 'validate', label: 'Validate Task', status: 'pending' },
+  { id: 'init-agent', label: 'Initialize Agent', status: 'pending' },
+  { id: 'process', label: 'Process Task', status: 'pending' },
+  { id: 'proof', label: 'Generate Proof', status: 'pending' },
+  { id: 'complete', label: 'Release Payment', status: 'pending' },
+];
