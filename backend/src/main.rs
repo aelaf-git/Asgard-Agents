@@ -53,7 +53,7 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!("RPC: {}", config.solana_rpc_url);
 
     // Initialize services
-    let ai_service = AiService::new(&config);
+    let ai_service = AiService::new();
     let solana_service = SolanaService::new(&config)?;
 
     tracing::info!("Agent pubkey: {}", solana_service.agent_pubkey());

@@ -269,15 +269,17 @@ export default function ExecutionTerminal({ onBack }: ExecutionTerminalProps) {
                 remarkPlugins={[remarkGfm]}
                 rehypePlugins={[rehypeSanitize]}
                 components={{
-                  code({ inline, className, children, ...props }: any) {
+                  code({ className, children, ...props }) {
                     const match = /language-(\w+)/.exec(className || '');
                     const isMermaid = match && match[1] === 'mermaid';
                     
-                    if (!inline && isMermaid) {
+                    if (isMermaid) {
                       return <MermaidDiagram chart={String(children).replace(/\n$/, '')} />;
                     }
                     
-                    return !inline ? (
+                    const isBlock = match || String(children).includes('\n');
+                    
+                    return isBlock ? (
                       <div className="bg-void p-4 rounded-lg my-4 overflow-x-auto border border-border/50 shadow-inner">
                         <code className={className} {...props}>
                           {children}
@@ -289,13 +291,13 @@ export default function ExecutionTerminal({ onBack }: ExecutionTerminalProps) {
                       </code>
                     );
                   },
-                  h1: ({node, ...props}) => <h1 className="text-primary text-xl font-bold mt-6 mb-4 pb-2 border-b border-border/50 tracking-wider" {...props} />,
-                  h2: ({node, ...props}) => <h2 className="text-foreground text-lg font-bold mt-5 mb-3 tracking-wide" {...props} />,
-                  h3: ({node, ...props}) => <h3 className="text-foreground text-base font-bold mt-4 mb-2" {...props} />,
-                  ul: ({node, ...props}) => <ul className="list-disc list-inside space-y-1 my-3 text-muted-foreground" {...props} />,
-                  ol: ({node, ...props}) => <ol className="list-decimal list-inside space-y-1 my-3 text-muted-foreground" {...props} />,
-                  a: ({node, ...props}) => <a className="text-primary hover:text-primary/80 underline decoration-primary/30 underline-offset-2 transition-colors" target="_blank" rel="noopener noreferrer" {...props} />,
-                  p: ({node, ...props}) => <p className="my-3 leading-loose" {...props} />,
+                  h1: ({node, ...props}) => { void node; return <h1 className="text-primary text-xl font-bold mt-6 mb-4 pb-2 border-b border-border/50 tracking-wider" {...props} />; },
+                  h2: ({node, ...props}) => { void node; return <h2 className="text-foreground text-lg font-bold mt-5 mb-3 tracking-wide" {...props} />; },
+                  h3: ({node, ...props}) => { void node; return <h3 className="text-foreground text-base font-bold mt-4 mb-2" {...props} />; },
+                  ul: ({node, ...props}) => { void node; return <ul className="list-disc list-inside space-y-1 my-3 text-muted-foreground" {...props} />; },
+                  ol: ({node, ...props}) => { void node; return <ol className="list-decimal list-inside space-y-1 my-3 text-muted-foreground" {...props} />; },
+                  a: ({node, ...props}) => { void node; return <a className="text-primary hover:text-primary/80 underline decoration-primary/30 underline-offset-2 transition-colors" target="_blank" rel="noopener noreferrer" {...props} />; },
+                  p: ({node, ...props}) => { void node; return <p className="my-3 leading-loose" {...props} />; },
                 }}
               >
                 {activeJob.result || ''}
