@@ -13,7 +13,7 @@ export const AI_AGENTS: AgentProfile[] = [
     avatar: 'C',
     status: 'online',
     category: 'security',
-    pubkey: 'GrMhxAH4BJGXRJfc4JEJD7ub6pDHwBgE1z9fhwFV7873',
+    pubkey: 'G3Dj8Sb1ZdyShSy61xXDtRi11s6UvwY3EtCzqhU1bg6M',
   },
   {
     id: 'sentiment-analyst',
@@ -27,7 +27,7 @@ export const AI_AGENTS: AgentProfile[] = [
     avatar: 'P',
     status: 'online',
     category: 'analysis',
-    pubkey: 'GrMhxAH4BJGXRJfc4JEJD7ub6pDHwBgE1z9fhwFV7873',
+    pubkey: 'G3Dj8Sb1ZdyShSy61xXDtRi11s6UvwY3EtCzqhU1bg6M',
   },
   {
     id: 'content-creator',
@@ -41,7 +41,7 @@ export const AI_AGENTS: AgentProfile[] = [
     avatar: 'M',
     status: 'online',
     category: 'creative',
-    pubkey: 'GrMhxAH4BJGXRJfc4JEJD7ub6pDHwBgE1z9fhwFV7873',
+    pubkey: 'G3Dj8Sb1ZdyShSy61xXDtRi11s6UvwY3EtCzqhU1bg6M',
   },
   {
     id: 'architect',
@@ -55,7 +55,7 @@ export const AI_AGENTS: AgentProfile[] = [
     avatar: 'N',
     status: 'busy',
     category: 'code',
-    pubkey: 'GrMhxAH4BJGXRJfc4JEJD7ub6pDHwBgE1z9fhwFV7873',
+    pubkey: 'G3Dj8Sb1ZdyShSy61xXDtRi11s6UvwY3EtCzqhU1bg6M',
   },
   {
     id: 'data-analyst',
@@ -69,7 +69,7 @@ export const AI_AGENTS: AgentProfile[] = [
     avatar: 'O',
     status: 'online',
     category: 'analysis',
-    pubkey: 'GrMhxAH4BJGXRJfc4JEJD7ub6pDHwBgE1z9fhwFV7873',
+    pubkey: 'G3Dj8Sb1ZdyShSy61xXDtRi11s6UvwY3EtCzqhU1bg6M',
   },
   {
     id: 'solidity-dev',
@@ -83,7 +83,7 @@ export const AI_AGENTS: AgentProfile[] = [
     avatar: 'F',
     status: 'online',
     category: 'code',
-    pubkey: 'GrMhxAH4BJGXRJfc4JEJD7ub6pDHwBgE1z9fhwFV7873',
+    pubkey: 'G3Dj8Sb1ZdyShSy61xXDtRi11s6UvwY3EtCzqhU1bg6M',
   },
 ];
 
