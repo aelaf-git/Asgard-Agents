@@ -21,18 +21,28 @@ impl AiService {
     /// Connects to the Python SSE endpoint and returns a mapped chunk stream
     pub async fn process_task_stream(
         &self,
+        job_id: &str,
         agent_id: &str,
         user_prompt: &str,
+        file_bytes: Option<Vec<u8>>,
     ) -> Result<BoxStream<'static, Result<String, AppError>>, AppError> {
         tracing::info!("Proxying task to Python Microservice for agent: {}", agent_id);
 
-        let payload = serde_json::json!({
-            "agent_id": agent_id,
-            "prompt": user_prompt
-        });
+        let mut form = reqwest::multipart::Form::new()
+            .text("job_id", job_id.to_string())
+            .text("agent_id", agent_id.to_string())
+            .text("prompt", user_prompt.to_string());
+
+        if let Some(bytes) = file_bytes {
+            let part = reqwest::multipart::Part::bytes(bytes)
+                .file_name("upload.pdf")
+                .mime_str("application/pdf")
+                .map_err(|e| AppError::AiError(format!("Invalid MIME type: {}", e)))?;
+            form = form.part("file", part);
+        }
 
         let response = self.client.post(format!("{}/api/execute", self.python_api_url))
-            .json(&payload)
+            .multipart(form)
             .send()
             .await
             .map_err(|e| AppError::AiError(format!("Failed to connect to Python service: {}", e)))?;

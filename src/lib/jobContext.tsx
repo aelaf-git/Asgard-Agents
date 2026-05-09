@@ -24,7 +24,7 @@ export function JobProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const createJob = useCallback(
-    async (agent: AgentProfile, prompt: string, amount: number) => {
+    async (agent: AgentProfile, prompt: string, amount: number, file: File | null = null) => {
       if (!sdk || !publicKey) throw new Error("Wallet not connected");
 
       const jobId = sdk.generateJobId();
@@ -71,6 +71,7 @@ export function JobProvider({ children }: { children: ReactNode }) {
           jobId,
           publicKey.toString(),
           amount,
+          file,
           updateStep,
           (chunk) => {
             setActiveJob(prev => prev ? { ...prev, result: (prev.result || "") + chunk } : null);

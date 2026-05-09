@@ -24,6 +24,7 @@ export async function executeAgentTask(
   jobId: string,
   employer: string,
   amount: number,
+  file: File | null,
   onStepUpdate: (stepIndex: number, status: ExecutionStep['status'], detail?: string) => void,
   onChunk: (chunk: string) => void
 ): Promise<{ result: string; resultHash: string }> {
@@ -39,10 +40,19 @@ export async function executeAgentTask(
 
     onStepUpdate(2, 'active', 'Deep-scanning repository & processing...');
     
+    const formData = new FormData();
+    formData.append('job_id', jobId);
+    formData.append('agent_id', agent.id);
+    formData.append('prompt', prompt);
+    formData.append('employer', employer);
+    formData.append('amount', amount.toString());
+    if (file) {
+      formData.append('file', file);
+    }
+
     const response = await fetch(`${API_BASE_URL}/api/job/execute`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ job_id: jobId, agent_id: agent.id, prompt, employer, amount })
+      body: formData,
     });
 
     if (!response.ok) {

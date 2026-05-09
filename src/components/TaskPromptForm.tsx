@@ -11,34 +11,19 @@ interface TaskPromptFormProps {
 }
 
 const EXAMPLE_PROMPTS: Record<string, string[]> = {
-  'code-auditor': [
-    'Audit this public GitHub repository for security vulnerabilities: https://github.com/coral-xyz/anchor/blob/master/examples/tutorial/basic-0/programs/basic-0/src/lib.rs',
-    'Review this smart contract for reentrancy attacks and access control issues.',
-  ],
-  'sentiment-analyst': [
-    'Analyze market sentiment for $SOL across Twitter, Discord, and on-chain metrics.',
-    'Generate a risk assessment report for the Marinade Finance staking protocol.',
-  ],
-  'content-creator': [
-    'Write a Twitter thread explaining how decentralized AI agents work on Solana.',
-    'Create marketing copy for a new DeFi protocol launching on Solana.',
-  ],
-  'architect': [
+  'nexus': [
     'Design a microservices architecture for a real-time NFT marketplace with bidding.',
     'Create a system design for a cross-chain bridge with fraud proof verification.',
   ],
-  'data-analyst': [
-    'Analyze the last 30 days of on-chain data for the Jupiter exchange protocol.',
-    'Build a correlation model between social mentions and token price for $JUP.',
-  ],
-  'solidity-dev': [
-    'Write an Anchor program for a token staking vault with configurable APY and lock periods.',
-    'Create a Solana escrow program with PDA vaults and timeout cancellation.',
+  'teacher': [
+    'Summarize the key points of chapter 1 in the uploaded document.',
+    'Explain the concept of RAG as described in this PDF.',
   ],
 };
 
 export default function TaskPromptForm({ agent, onJobCreated }: TaskPromptFormProps) {
   const [prompt, setPrompt] = useState('');
+  const [file, setFile] = useState<File | null>(null);
   const [amount, setAmount] = useState('0.001');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { connected } = useWallet();
@@ -52,10 +37,14 @@ export default function TaskPromptForm({ agent, onJobCreated }: TaskPromptFormPr
     let finalPrompt = prompt.trim();
 
     if (!finalPrompt || !connected || isExecuting) return;
+    if (agent.id === 'teacher' && !file) {
+      alert("Please upload a PDF file for the Teacher agent.");
+      return;
+    }
 
     setIsSubmitting(true);
     try {
-      await createJob(agent, finalPrompt, agent.priceSOL);
+      await createJob(agent, finalPrompt, agent.priceSOL, file);
       onJobCreated();
     } finally {
       setIsSubmitting(false);
@@ -77,6 +66,22 @@ export default function TaskPromptForm({ agent, onJobCreated }: TaskPromptFormPr
           disabled={isSubmitting}
         />
       </div>
+
+      {/* File Upload for Teacher */}
+      {agent.id === 'teacher' && (
+        <div className="space-y-2">
+          <label className="font-mono text-[11px] text-muted-foreground tracking-wider uppercase block">
+            Upload PDF Material
+          </label>
+          <input
+            type="file"
+            accept=".pdf"
+            onChange={(e) => setFile(e.target.files?.[0] || null)}
+            className="w-full px-4 py-2 rounded-lg bg-void border border-border text-foreground font-mono text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90 transition-all"
+            disabled={isSubmitting}
+          />
+        </div>
+      )}
 
       {/* Example prompts */}
       {examples.length > 0 && (

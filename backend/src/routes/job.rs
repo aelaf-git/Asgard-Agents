@@ -14,25 +14,53 @@ use crate::models::{
     PendingJob,
 };
 
+use axum::extract::Multipart;
+
 /// POST /api/job/execute — Execute an AI task with REAL-TIME STREAMING
 pub async fn execute_job(
     State(state): State<Arc<AppState>>,
-    Json(req): Json<ExecuteJobRequest>,
+    mut multipart: Multipart,
 ) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, AppError> {
-    if req.prompt.is_empty() || req.job_id.is_empty() {
+    let mut job_id = String::new();
+    let mut agent_id = String::new();
+    let mut prompt = String::new();
+    let mut employer = String::new();
+    let mut amount = 0.001;
+    let mut file_bytes: Option<Vec<u8>> = None;
+
+    while let Some(field) = multipart.next_field().await.map_err(|e| AppError::BadRequest(e.to_string()))? {
+        let name = field.name().unwrap_or("").to_string();
+        
+        if name == "file" {
+            let data = field.bytes().await.map_err(|e| AppError::BadRequest(e.to_string()))?;
+            file_bytes = Some(data.to_vec());
+        } else {
+            let text = field.text().await.unwrap_or_default();
+            match name.as_str() {
+                "job_id" => job_id = text,
+                "agent_id" => agent_id = text,
+                "prompt" => prompt = text,
+                "employer" => employer = text,
+                "amount" => amount = text.parse().unwrap_or(0.001),
+                _ => {}
+            }
+        }
+    }
+
+    if prompt.is_empty() || job_id.is_empty() {
         return Err(AppError::BadRequest("Missing job_id or prompt".into()));
     }
 
-    if req.amount > 0.1 {
-        tracing::warn!("Charge is unusually high ({} SOL). Resetting to 0.001 for safety.", req.amount);
+    if amount > 0.1 {
+        tracing::warn!("Charge is unusually high ({} SOL). Resetting to 0.001 for safety.", amount);
     }
 
-    tracing::info!("Streaming audit for job {}", req.job_id);
+    tracing::info!("Streaming audit for job {}", job_id);
 
     // Initialize the stream from AI service
-    let mut stream = state.ai_service.process_task_stream(&req.agent_id, &req.prompt).await?;
-    let job_id = req.job_id.clone();
-    let employer = req.employer.clone();
+    let mut stream = state.ai_service.process_task_stream(&job_id, &agent_id, &prompt, file_bytes).await?;
+    let job_id_clone = job_id.clone();
+    let employer_clone = employer.clone();
 
     // Create a background task to accumulate the full result for later settlement
     let state_clone = Arc::clone(&state);
@@ -56,15 +84,15 @@ pub async fn execute_job(
 
         // Once done, generate hash and store in pending_jobs
         let hash = crate::services::ai::generate_proof_hash(&full_content);
-        state_clone.pending_jobs.insert(job_id.clone(), PendingJob {
+        state_clone.pending_jobs.insert(job_id_clone.clone(), PendingJob {
             result: full_content,
             hash: hash.clone(),
-            employer,
+            employer: employer_clone,
         });
 
         // Send 'done' with the real hash
         let done_payload = serde_json::json!({
-            "job_id": job_id,
+            "job_id": job_id_clone,
             "hash": hash
         }).to_string();
         

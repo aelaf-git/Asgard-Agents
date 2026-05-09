@@ -6,3 +6,9 @@ sse-starlette
 langchain
 langchain-groq
 langchain-core
+langchain-huggingface
+faiss-cpu
+pypdf
+python-multipart
+sentence-transformers
+langchain-community
