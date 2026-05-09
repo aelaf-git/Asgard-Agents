@@ -1,0 +1,304 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+@layer base {
+  :root {
+    /* Core palette: Deep void black + neon cyan */
+    --background: 230 15% 5%;
+    --foreground: 185 100% 94%;
+
+    --card: 230 15% 8%;
+    --card-foreground: 185 100% 94%;
+
+    --popover: 230 15% 8%;
+    --popover-foreground: 185 100% 94%;
+
+    --primary: 185 100% 50%;
+    --primary-foreground: 230 15% 5%;
+
+    --secondary: 230 12% 14%;
+    --secondary-foreground: 185 40% 75%;
+
+    --muted: 230 12% 12%;
+    --muted-foreground: 220 10% 50%;
+
+    --accent: 165 100% 45%;
+    --accent-foreground: 230 15% 5%;
+
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 185 40% 16%;
+    --input: 230 12% 14%;
+    --ring: 185 100% 50%;
+
+    --radius: 0.5rem;
+
+    /* Cyberpunk extensions */
+    --neon-cyan: 185 100% 50%;
+    --neon-green: 165 100% 45%;
+    --neon-magenta: 320 100% 55%;
+    --void: 230 15% 3%;
+    --surface: 230 15% 8%;
+    --surface-hover: 230 15% 12%;
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(185 100% 50%) 0%, hsl(165 100% 45%) 100%);
+    --gradient-glow: linear-gradient(135deg, hsl(185 100% 50% / 0.2) 0%, hsl(165 100% 45% / 0.1) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(230 15% 10%) 0%, hsl(230 15% 6%) 100%);
+    --gradient-hero: radial-gradient(ellipse at 50% 0%, hsl(185 100% 50% / 0.08) 0%, transparent 60%);
+    --gradient-scanline: repeating-linear-gradient(0deg, transparent, transparent 2px, hsl(185 100% 50% / 0.03) 2px, hsl(185 100% 50% / 0.03) 4px);
+
+    /* Shadows */
+    --shadow-neon: 0 0 20px hsl(185 100% 50% / 0.3), 0 0 60px hsl(185 100% 50% / 0.1);
+    --shadow-neon-sm: 0 0 10px hsl(185 100% 50% / 0.2);
+    --shadow-card: 0 4px 30px hsl(230 15% 2% / 0.6);
+    --shadow-glow-green: 0 0 20px hsl(165 100% 45% / 0.3);
+
+    --sidebar-background: 230 15% 5%;
+    --sidebar-foreground: 185 100% 94%;
+    --sidebar-primary: 185 100% 50%;
+    --sidebar-primary-foreground: 230 15% 5%;
+    --sidebar-accent: 230 12% 14%;
+    --sidebar-accent-foreground: 185 40% 75%;
+    --sidebar-border: 185 40% 16%;
+    --sidebar-ring: 185 100% 50%;
+  }
+}
+
+@layer base {
+  * {
+    border-color: hsl(var(--border));
+  }
+
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background-color: hsl(var(--primary) / 0.3);
+    color: hsl(var(--foreground));
+  }
+}
+
+@layer components {
+  /* Cyberpunk card styling */
+  .cyber-card {
+    background: var(--gradient-card);
+    border: 1px solid hsl(var(--border));
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .cyber-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--gradient-scanline);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .cyber-card:hover {
+    border-color: hsl(var(--primary) / 0.5);
+    box-shadow: var(--shadow-neon-sm);
+  }
+
+  .cyber-card:hover::before {
+    opacity: 1;
+  }
+
+  /* Neon text glow */
+  .text-neon {
+    color: hsl(var(--primary));
+    text-shadow: 0 0 10px hsl(var(--primary) / 0.5), 0 0 40px hsl(var(--primary) / 0.2);
+  }
+
+  .text-neon-green {
+    color: hsl(var(--neon-green));
+    text-shadow: 0 0 10px hsl(var(--neon-green) / 0.5), 0 0 40px hsl(var(--neon-green) / 0.2);
+  }
+
+  /* Neon border pulse */
+  .border-neon {
+    border-color: hsl(var(--primary) / 0.5);
+    box-shadow: var(--shadow-neon-sm);
+  }
+
+  .border-neon-pulse {
+    animation: neon-pulse 2s ease-in-out infinite;
+  }
+
+  /* Scanline overlay */
+  .scanline-overlay {
+    background: var(--gradient-scanline);
+    pointer-events: none;
+  }
+
+  /* Grid background */
+  .grid-bg {
+    background-image:
+      linear-gradient(hsl(var(--primary) / 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--primary) / 0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+
+  /* Monospace utility */
+  .font-mono-code {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  }
+
+  /* Terminal cursor blink */
+  .cursor-blink::after {
+    content: '|';
+    animation: blink 1s step-end infinite;
+    color: hsl(var(--primary));
+  }
+
+  /* Glitch effect text */
+  .glitch-text {
+    position: relative;
+  }
+
+  /* Status indicator dot */
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  .status-dot-active {
+    background-color: hsl(var(--neon-green));
+    box-shadow: 0 0 8px hsl(var(--neon-green) / 0.6);
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+
+  .status-dot-pending {
+    background-color: hsl(var(--primary));
+    box-shadow: 0 0 8px hsl(var(--primary) / 0.6);
+    animation: pulse-dot 1.5s ease-in-out infinite;
+  }
+
+  .status-dot-error {
+    background-color: hsl(var(--destructive));
+    box-shadow: 0 0 8px hsl(var(--destructive) / 0.6);
+  }
+}
+
+@layer utilities {
+  /* Glow border on focus */
+  .focus-neon:focus {
+    outline: none;
+    border-color: hsl(var(--primary));
+    box-shadow: var(--shadow-neon-sm);
+  }
+}
+
+/* Animations */
+@keyframes neon-pulse {
+  0%, 100% { box-shadow: 0 0 10px hsl(185 100% 50% / 0.2); }
+  50% { box-shadow: 0 0 20px hsl(185 100% 50% / 0.4), 0 0 40px hsl(185 100% 50% / 0.1); }
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.2); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes scan {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100vh); }
+}
+
+@keyframes typing {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Solana Wallet Button Override */
+.wallet-adapter-button-trigger,
+.wallet-adapter-button {
+  background: hsl(230 15% 10%) !important;
+  border: 1px solid hsl(185 100% 50% / 0.3) !important;
+  border-radius: 0.5rem !important;
+  color: hsl(185 100% 50%) !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 0.8rem !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.05em !important;
+  text-transform: uppercase !important;
+  padding: 0.5rem 1.25rem !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  height: 40px !important;
+}
+
+.wallet-adapter-button-trigger:hover,
+.wallet-adapter-button:hover {
+  background: hsl(185 100% 50% / 0.1) !important;
+  border-color: hsl(185 100% 50% / 0.6) !important;
+  box-shadow: 0 0 15px hsl(185 100% 50% / 0.2) !important;
+}
+
+.wallet-adapter-button-trigger:not([disabled]):hover {
+  background: hsl(185 100% 50% / 0.1) !important;
+}
+
+.wallet-adapter-modal-wrapper {
+  background: hsl(230 15% 8%) !important;
+  border: 1px solid hsl(185 100% 50% / 0.2) !important;
+}
+
+.wallet-adapter-modal-title {
+  color: hsl(185 100% 94%) !important;
+  font-family: 'JetBrains Mono', monospace !important;
+}
+
+.wallet-adapter-modal-list .wallet-adapter-button {
+  background: hsl(230 15% 12%) !important;
+}
+
+.wallet-adapter-modal-button-close {
+  background: hsl(230 15% 15%) !important;
+}
+
+.wallet-adapter-modal-button-close svg {
+  fill: hsl(185 100% 94%) !important;
+}
+
+.wallet-adapter-dropdown-list {
+  background: hsl(230 15% 8%) !important;
+  border: 1px solid hsl(185 100% 50% / 0.2) !important;
+}
+
+.wallet-adapter-dropdown-list-item {
+  color: hsl(185 100% 94%) !important;
+}
+
+.wallet-adapter-dropdown-list-item:hover {
+  background: hsl(185 100% 50% / 0.1) !important;
+}

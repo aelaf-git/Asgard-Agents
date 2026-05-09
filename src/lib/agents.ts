@@ -1,0 +1,90 @@
+import { AgentProfile } from './types';
+
+export const AI_AGENTS: AgentProfile[] = [
+  {
+    id: 'code-auditor',
+    name: 'CIPHER',
+    role: 'Code Auditor Agent',
+    description: 'Deep-scans smart contracts and codebases for vulnerabilities, gas optimizations, and security flaws. Returns a structured audit report with severity ratings.',
+    specialties: ['Smart Contract Audit', 'Gas Optimization', 'Vulnerability Detection', 'Rust / Solidity'],
+    priceSOL: 0.5,
+    rating: 4.9,
+    completedJobs: 1247,
+    avatar: 'C',
+    status: 'online',
+    category: 'security',
+  },
+  {
+    id: 'sentiment-analyst',
+    name: 'PRISM',
+    role: 'Sentiment Analyst Agent',
+    description: 'Analyzes market sentiment across social media, news feeds, and on-chain data. Generates alpha signals and risk assessments for any token or project.',
+    specialties: ['Market Analysis', 'Social Sentiment', 'On-Chain Analytics', 'Risk Assessment'],
+    priceSOL: 0.3,
+    rating: 4.7,
+    completedJobs: 892,
+    avatar: 'P',
+    status: 'online',
+    category: 'analysis',
+  },
+  {
+    id: 'content-creator',
+    name: 'MUSE',
+    role: 'Content Creator Agent',
+    description: 'Crafts compelling narratives, technical documentation, marketing copy, and social threads. Optimized for Web3 and DeFi communication.',
+    specialties: ['Technical Writing', 'Marketing Copy', 'Thread Crafting', 'Documentation'],
+    priceSOL: 0.2,
+    rating: 4.8,
+    completedJobs: 2103,
+    avatar: 'M',
+    status: 'online',
+    category: 'creative',
+  },
+  {
+    id: 'architect',
+    name: 'NEXUS',
+    role: 'System Architect Agent',
+    description: 'Designs scalable system architectures, database schemas, and API contracts. Specializes in distributed systems and microservices patterns.',
+    specialties: ['System Design', 'API Architecture', 'Database Design', 'Scalability'],
+    priceSOL: 0.6,
+    rating: 4.9,
+    completedJobs: 634,
+    avatar: 'N',
+    status: 'busy',
+    category: 'code',
+  },
+  {
+    id: 'data-analyst',
+    name: 'ORACLE',
+    role: 'Data Analyst Agent',
+    description: 'Transforms raw on-chain and off-chain data into actionable insights. Builds dashboards, queries, and predictive models for DeFi protocols.',
+    specialties: ['Data Visualization', 'SQL / GraphQL', 'Predictive Models', 'DeFi Analytics'],
+    priceSOL: 0.35,
+    rating: 4.6,
+    completedJobs: 478,
+    avatar: 'O',
+    status: 'online',
+    category: 'analysis',
+  },
+  {
+    id: 'solidity-dev',
+    name: 'FORGE',
+    role: 'Smart Contract Developer',
+    description: 'Writes, tests, and deploys production-grade smart contracts. Expert in Anchor/Rust for Solana and Solidity for EVM chains.',
+    specialties: ['Anchor / Rust', 'Solidity', 'Testing Suites', 'Deployment Scripts'],
+    priceSOL: 0.75,
+    rating: 4.8,
+    completedJobs: 389,
+    avatar: 'F',
+    status: 'online',
+    category: 'code',
+  },
+];
+
+export function getAgentById(id: string): AgentProfile | undefined {
+  return AI_AGENTS.find((a) => a.id === id);
+}
+
+export function getAgentsByCategory(category: AgentProfile['category']): AgentProfile[] {
+  return AI_AGENTS.filter((a) => a.category === category);
+}
