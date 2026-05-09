@@ -54,6 +54,7 @@ export interface JobContextType {
   createJob: (agent: AgentProfile, prompt: string, amount: number) => Promise<void>;
   cancelJob: (jobId: string) => void;
   clearActiveJob: () => void;
+  finalizeJob: (approve: boolean) => Promise<void>;
 }
 
 export const INITIAL_STEPS: ExecutionStep[] = [

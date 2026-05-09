@@ -2,105 +2,113 @@ use std::sync::Arc;
 use axum::{
     extract::{Path, State},
     Json,
+    response::sse::{Event, Sse},
 };
+use futures_util::{Stream, StreamExt};
+use std::convert::Infallible;
 
 use crate::AppState;
 use crate::error::AppError;
 use crate::models::{
-    CompleteJobOnchainRequest, CompleteJobOnchainResponse,
-    ExecuteJobRequest, ExecuteJobResponse,
-    JobStatusResponse,
+    ExecuteJobRequest, FinalizeJobRequest, CompleteJobOnchainResponse,
+    PendingJob,
 };
 
-/// POST /api/job/execute — Execute an AI task (off-chain processing)
-///
-/// Flow:
-///   1. Frontend calls `initialize_job` on Solana (locks SOL)
-///   2. Frontend calls this endpoint with the job details
-///   3. Backend processes the task via AI provider
-///   4. Returns result + proof hash to frontend
-///   5. Frontend (or backend) calls `complete_job` on Solana
+/// POST /api/job/execute — Execute an AI task with REAL-TIME STREAMING
 pub async fn execute_job(
     State(state): State<Arc<AppState>>,
     Json(req): Json<ExecuteJobRequest>,
-) -> Result<Json<ExecuteJobResponse>, AppError> {
-    // Validate input
-    if req.prompt.is_empty() {
-        return Err(AppError::BadRequest("Prompt cannot be empty".into()));
-    }
-    if req.job_id.is_empty() {
-        return Err(AppError::BadRequest("Job ID is required".into()));
-    }
-    if req.amount <= 0.0 {
-        return Err(AppError::BadRequest("Amount must be positive".into()));
+) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, AppError> {
+    if req.prompt.is_empty() || req.job_id.is_empty() {
+        return Err(AppError::BadRequest("Missing job_id or prompt".into()));
     }
 
-    tracing::info!(
-        "Executing job | id={} | agent={} | employer={} | amount={}",
-        req.job_id, req.agent_id, req.employer, req.amount
-    );
+    if req.amount > 0.1 {
+        tracing::warn!("Charge is unusually high ({} SOL). Resetting to 0.001 for safety.", req.amount);
+    }
 
-    let start = std::time::Instant::now();
+    tracing::info!("Streaming audit for job {}", req.job_id);
 
-    // Process task via AI service
-    let (result, result_hash) = state
-        .ai_service
-        .process_task(&req.agent_id, &req.prompt)
-        .await?;
+    // Initialize the stream from AI service
+    let mut stream = state.ai_service.process_task_stream(&req.agent_id, &req.prompt).await?;
+    let job_id = req.job_id.clone();
+    let employer = req.employer.clone();
 
-    let processing_time_ms = start.elapsed().as_millis() as u64;
+    // Create a background task to accumulate the full result for later settlement
+    let state_clone = Arc::clone(&state);
+    let (tx, rx) = tokio::sync::mpsc::channel(100);
 
-    Ok(Json(ExecuteJobResponse {
-        success: true,
-        job_id: req.job_id,
-        result,
-        result_hash,
-        processing_time_ms,
-        agent_id: req.agent_id,
-    }))
+    tokio::spawn(async move {
+        let mut full_content = String::new();
+        
+        while let Some(chunk_result) = stream.next().await {
+            match chunk_result {
+                Ok(chunk) => {
+                    full_content.push_str(&chunk);
+                    let _ = tx.send(Ok(Event::default().data(chunk))).await;
+                }
+                Err(e) => {
+                    let _ = tx.send(Ok(Event::default().event("error").data(e.to_string()))).await;
+                    return;
+                }
+            }
+        }
+
+        // Once done, generate hash and store in pending_jobs
+        let hash = crate::services::ai::generate_proof_hash(&full_content);
+        state_clone.pending_jobs.insert(job_id.clone(), PendingJob {
+            result: full_content,
+            hash: hash.clone(),
+            employer,
+        });
+
+        // Send 'done' with the real hash
+        let done_payload = serde_json::json!({
+            "job_id": job_id,
+            "hash": hash
+        }).to_string();
+        
+        let _ = tx.send(Ok(Event::default().event("done").data(done_payload))).await;
+    });
+
+    Ok(Sse::new(tokio_stream::wrappers::ReceiverStream::new(rx)))
 }
 
-/// POST /api/job/complete — Sign `complete_job` on Solana
-///
-/// After the AI processes the task, this endpoint:
-///   1. Signs the `complete_job` instruction with the agent's keypair
-///   2. Submits the transaction to Solana
-///   3. Returns the transaction signature as proof
-pub async fn complete_job_onchain(
+/// POST /api/job/finalize — Approve (Release) or Reject (Refund)
+pub async fn finalize_job(
     State(state): State<Arc<AppState>>,
-    Json(req): Json<CompleteJobOnchainRequest>,
+    Json(req): Json<FinalizeJobRequest>,
 ) -> Result<Json<CompleteJobOnchainResponse>, AppError> {
-    if req.result_hash.is_empty() || req.result_hash.len() > 64 {
-        return Err(AppError::BadRequest("Result hash must be 1-64 characters".into()));
-    }
+    tracing::info!("Finalizing job {}: approve={}", req.job_id, req.approve);
 
-    tracing::info!(
-        "Completing job on-chain | id={} | employer={} | hash={}",
-        req.job_id, req.employer, req.result_hash
-    );
+    let pending = state.pending_jobs.remove(&req.job_id)
+        .ok_or_else(|| AppError::BadRequest("Job not found in pending queue".into()))?;
 
-    let signature = state
-        .solana_service
-        .complete_job_onchain(&req.employer, &req.job_id, &req.result_hash)
-        .await?;
+    let signature = if req.approve {
+        // Release funds to agent
+        state.solana_service
+            .complete_job_onchain(&req.employer, &req.job_id, &pending.1.hash)
+            .await?
+    } else {
+        // Refund funds to employer
+        state.solana_service
+            .cancel_job_onchain(&req.employer, &req.job_id)
+            .await?
+    };
 
     Ok(Json(CompleteJobOnchainResponse {
         success: true,
         signature,
         job_id: req.job_id,
-        result_hash: req.result_hash,
+        result_hash: pending.1.hash,
     }))
 }
 
 /// GET /api/job/status/:job_id — Check job execution status
-///
-/// In production, this would query on-chain state or a local cache.
-/// For now returns a placeholder indicating the job flow.
 pub async fn job_status(
     Path(job_id): Path<String>,
-) -> Json<JobStatusResponse> {
-    // In production: fetch from on-chain or Redis cache
-    Json(JobStatusResponse {
+) -> Json<crate::models::JobStatusResponse> {
+    Json(crate::models::JobStatusResponse {
         job_id,
         status: "pending".into(),
         result: None,

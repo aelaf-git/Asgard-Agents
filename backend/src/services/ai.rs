@@ -15,24 +15,17 @@ use crate::services::agent_tools::GithubFetcher;
 /// System prompts per agent specialization
 fn get_system_prompt(agent_id: &str) -> &'static str {
     match agent_id {
-        "code-auditor" => {
-            "You are CIPHER, an elite Cyber-Security Engineer and Smart Contract Auditor. \
-             Your mission is to perform deep-security analysis on code provided to you. \
-             \
-             CORE CAPABILITIES: \
-             1. If the user provides a GitHub URL, you MUST use the github_fetcher tool to read the code first. \
-             2. You detect vulnerabilities (Reentrancy, Integer Overflow, Access Control flaws, etc.). \
-             3. You suggest gas optimizations and logic improvements. \
-             \
-             OUTPUT FORMAT: \
-             Return a professional, high-impact Markdown report including: \
-             - A summary table of vulnerabilities by severity (Critical, High, Medium, Low). \
-             - Detailed sections for each finding with line references and 'Remediation' steps. \
-             - An 'Overall Security Score' out of 10. \
-             - Final 'Seal of Approval' status. \
-             \
-             Be concise, technical, and ruthless in finding bugs. Accuracy is paramount."
-        }
+        "code-auditor" => "You are CIPHER, a world-class agentic cybersecurity analyst. \
+            Your goal is to perform a deep-source audit of the provided repository context. \
+            \
+            CRITICAL RULES: \
+            1. NEVER simply echo the source code or tool outputs. \
+            2. ALWAYS summarize the repository's architecture and purpose first. \
+            3. Act as a human auditor: write in a conversational, professional tone. \
+            4. Identify potential vulnerabilities (security, logic, or performance) and explain them clearly. \
+            5. Provide actionable remediation steps. \
+            \
+            Structure your response as a polished chat-style report, not a data dump.",
         "sentiment-analyst" => {
             "You are PRISM, a high-frequency market sentiment analyst. \
              Analyze the provided data or query for social sentiment, whale activity, and market momentum. \
@@ -79,15 +72,63 @@ impl AiService {
         };
 
         let proof_hash = generate_proof_hash(&result);
-        tracing::info!(
-            "Task processed | agent={} | hash={} | len={}",
-            agent_id, proof_hash, result.len()
-        );
-
         Ok((result, proof_hash))
     }
 
-    /// Execute a Rig Agent loop with Tool support
+    /// Execute a Rig Agent loop with Tool support (Streaming Fallback)
+    pub async fn process_task_stream(
+        &self,
+        agent_id: &str,
+        user_prompt: &str,
+    ) -> Result<futures_util::stream::BoxStream<'static, Result<String, AppError>>, AppError> {
+        let system_prompt = get_system_prompt(agent_id);
+        let client = openai::Client::from_url(&self.api_key, "https://api.groq.com/openai");
+        
+        let mut final_prompt = user_prompt.to_string();
+
+        // MANUALLY handle the GitHub fetching to prevent the LLM from getting confused by tool loops
+        if agent_id == "code-auditor" && user_prompt.contains("http") {
+            tracing::info!("Extracting GitHub URL and fetching manually...");
+            
+            // Extract URL from prompt
+            let url = user_prompt.split_whitespace().find(|s| s.starts_with("http")).unwrap_or("");
+            if !url.is_empty() {
+                use rig::tool::Tool;
+                let fetcher = GithubFetcher;
+                
+                // Fetch the code
+                if let Ok(context_block) = fetcher.call(serde_json::json!({ "url": url })).await {
+                    tracing::info!("Successfully fetched {} chars of code", context_block.len());
+                    final_prompt = format!(
+                        "Analyze the following repository codebase and provide a professional, conversational security audit report. \
+                        Do NOT output the raw code. Focus on architecture, vulnerabilities, and actionable advice.\n\n\
+                        REPOSITORY CODE:\n{}\n\n\
+                        USER INSTRUCTIONS: {}",
+                        context_block,
+                        user_prompt
+                    );
+                }
+            }
+        }
+
+        let agent = client.agent(self.model.as_str())
+            .preamble(system_prompt)
+            .build();
+
+        // Fallback: Run full prompt then stream the result
+        let response = agent.prompt(&final_prompt)
+            .await
+            .map_err(|e| AppError::AiError(format!("Agent execution failed: {}", e)))?;
+
+        use futures_util::StreamExt;
+        
+        // Return a pinned stream that yields the full response as one chunk
+        Ok(futures_util::stream::once(async move {
+            Ok(response)
+        }).boxed())
+    }
+
+    /// Execute a Rig Agent loop with Tool support (Non-streaming)
     async fn run_rig_agent(
         &self,
         agent_id: &str,

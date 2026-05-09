@@ -32,7 +32,7 @@ interface ExecutionTerminalProps {
 }
 
 export default function ExecutionTerminal({ onBack }: ExecutionTerminalProps) {
-  const { activeJob, executionSteps, isExecuting, clearActiveJob } = useJobs();
+  const { activeJob, executionSteps, isExecuting, clearActiveJob, finalizeJob } = useJobs();
   const resultRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -250,18 +250,37 @@ export default function ExecutionTerminal({ onBack }: ExecutionTerminalProps) {
           </div>
 
           {/* Rehire / New Audit Button */}
-          <div className="px-4 py-4 border-t border-border bg-secondary/20">
-            <button
-              onClick={() => {
-                clearActiveJob();
-                if (onBack) onBack();
-              }}
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded bg-primary text-primary-foreground font-mono text-xs font-bold tracking-widest uppercase hover:shadow-neon transition-all"
-            >
-              <Terminal className="h-3.5 w-3.5" />
-              Start New Audit
-            </button>
-          </div>
+          {activeJob.completeTxSignature ? (
+            <div className="px-4 py-4 border-t border-border bg-secondary/20">
+              <button
+                onClick={() => {
+                  clearActiveJob();
+                  if (onBack) onBack();
+                }}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded bg-primary text-primary-foreground font-mono text-xs font-bold tracking-widest uppercase hover:shadow-neon transition-all"
+              >
+                <Terminal className="h-3.5 w-3.5" />
+                Start New Audit
+              </button>
+            </div>
+          ) : (
+            <div className="px-4 py-4 border-t border-border bg-secondary/20 grid grid-cols-2 gap-3">
+              <button
+                onClick={() => finalizeJob(false)}
+                className="flex items-center justify-center gap-2 py-2.5 rounded bg-destructive/10 text-destructive border border-destructive/30 font-mono text-xs font-bold tracking-widest uppercase hover:bg-destructive hover:text-white transition-all"
+              >
+                <XCircle className="h-3.5 w-3.5" />
+                Reject & Refund
+              </button>
+              <button
+                onClick={() => finalizeJob(true)}
+                className="flex items-center justify-center gap-2 py-2.5 rounded bg-neon-green text-black font-mono text-xs font-bold tracking-widest uppercase hover:shadow-neon transition-all"
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                Approve & Pay
+              </button>
+            </div>
+          )}
         </motion.div>
       )}
 

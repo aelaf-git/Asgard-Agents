@@ -158,6 +158,67 @@ impl SolanaService {
         Ok(signature.to_string())
     }
 
+    /// Build and submit the `cancel_job` transaction on Solana
+    /// 
+    /// This returns the escrowed SOL to the employer if they are unsatisfied.
+    pub async fn cancel_job_onchain(
+        &self,
+        employer_str: &str,
+        job_id: &str,
+    ) -> Result<String, AppError> {
+        let employer = Pubkey::from_str(employer_str)
+            .map_err(|e| AppError::SolanaError(format!("Invalid employer pubkey: {}", e)))?;
+
+        let (job_pda, _) = self.derive_job_pda(&employer, job_id);
+        let (vault_pda, _) = self.derive_vault_pda(&job_pda);
+        let agent_pubkey = self.agent_keypair.pubkey();
+
+        let discriminator = {
+            use sha2::{Sha256, Digest};
+            let mut hasher = Sha256::new();
+            hasher.update(b"global:cancel_job");
+            let hash = hasher.finalize();
+            hash[..8].to_vec()
+        };
+
+        let mut data = discriminator;
+        let job_id_bytes = job_id.as_bytes();
+        data.extend_from_slice(&(job_id_bytes.len() as u32).to_le_bytes());
+        data.extend_from_slice(job_id_bytes);
+
+        let accounts = vec![
+            AccountMeta::new(job_pda, false),
+            AccountMeta::new(vault_pda, false),
+            AccountMeta::new(agent_pubkey, true),
+            AccountMeta::new(employer, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+        ];
+
+        let instruction = Instruction {
+            program_id: self.program_id,
+            accounts,
+            data,
+        };
+
+        let recent_blockhash = self.rpc_client
+            .get_latest_blockhash()
+            .map_err(|e| AppError::SolanaError(format!("Failed to get blockhash: {}", e)))?;
+
+        let tx = Transaction::new_signed_with_payer(
+            &[instruction],
+            Some(&agent_pubkey),
+            &[&self.agent_keypair],
+            recent_blockhash,
+        );
+
+        let signature = self.rpc_client
+            .send_and_confirm_transaction(&tx)
+            .map_err(|e| AppError::SolanaError(format!("Refund transaction failed: {}", e)))?;
+
+        tracing::info!("cancel_job TX submitted (Refunded) | sig={} | job_id={}", signature, job_id);
+        Ok(signature.to_string())
+    }
+
     /// Check the SOL balance of the agent wallet
     pub fn agent_balance(&self) -> Result<f64, AppError> {
         let balance = self.rpc_client

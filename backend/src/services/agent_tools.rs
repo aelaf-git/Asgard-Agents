@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use rig::tool::Tool;
 use rig::completion::ToolDefinition;
+use base64::{Engine as _, engine::general_purpose};
 
 #[derive(Deserialize, Serialize)]
 pub struct GithubFetchArgs {
@@ -23,13 +24,13 @@ impl Tool for GithubFetcher {
     async fn definition(&self, _prompt: String) -> ToolDefinition {
         ToolDefinition {
             name: Self::NAME.to_string(),
-            description: "Fetches content from a public GitHub repository. Can fetch a specific file if provided, or the repository structure if a root URL is given. Input MUST be a public GitHub URL.".to_string(),
+            description: "Deep-scans a GitHub repository. Recursively fetches high-signal code files (.rs, .toml, .ts, .js, .py, .sol) while ignoring noise. Returns a bundled context block of the entire codebase.".to_string(),
             parameters: serde_json::json!({
                 "type": "object",
                 "properties": {
                     "url": {
                         "type": "string",
-                        "description": "The public GitHub URL (e.g., https://github.com/user/repo or https://github.com/user/repo/blob/main/src/lib.rs)"
+                        "description": "The public GitHub repository URL"
                     }
                 },
                 "required": ["url"]
@@ -39,81 +40,88 @@ impl Tool for GithubFetcher {
 
     async fn call(&self, args: Self::Args) -> Result<Self::Output, Self::Error> {
         let clean_url = args.url.trim().trim_end_matches('/');
-        
-        // Parse owner/repo/path
-        // Example: https://github.com/aelaf-git/CRUD-API/blob/main/src/main.rs
         let parts: Vec<&str> = clean_url.split("github.com/").collect();
         if parts.len() < 2 {
-            return Err(GithubToolError("Invalid GitHub URL format".into()));
+            return Err(GithubToolError("Invalid GitHub URL".into()));
         }
 
         let path_parts: Vec<&str> = parts[1].split('/').collect();
-        if path_parts.len() < 2 {
-            return Err(GithubToolError("URL must contain at least owner and repo".into()));
-        }
-
         let owner = path_parts[0];
         let repo = path_parts[1];
         
-        // Build API URL
-        // If it's a blob link, we need to extract the path after the branch
-        let api_url = if path_parts.contains(&"blob") {
-            let blob_index = path_parts.iter().position(|&r| r == "blob").unwrap();
-            let branch = path_parts.get(blob_index + 1).unwrap_or(&"main");
-            let file_path = path_parts[blob_index + 2..].join("/");
-            format!("https://api.github.com/repos/{}/{}/contents/{}?ref={}", owner, repo, file_path, branch)
-        } else {
-            // Root repo - fetch README or file list
-            format!("https://api.github.com/repos/{}/{}/contents", owner, repo)
-        };
-
-        tracing::info!("Agent Tool: Fetching via GitHub API: {}", api_url);
+        tracing::info!("Selective Context: Scanning repo {}/{}", owner, repo);
         
         let client = reqwest::Client::new();
-        let resp = client.get(&api_url)
+        
+        // 1. Get the recursive tree
+        let tree_url = format!("https://api.github.com/repos/{}/{}/git/trees/main?recursive=1", owner, repo);
+        let mut resp = client.get(&tree_url)
             .header("User-Agent", "AIGENT-Bot")
-            .header("Accept", "application/vnd.github.v3+json")
             .send()
             .await
-            .map_err(|e| GithubToolError(format!("API request failed: {}", e)))?;
+            .map_err(|e| GithubToolError(format!("Failed to fetch tree: {}", e)))?;
 
+        // Fallback to 'master' if 'main' fails
         if !resp.status().is_success() {
-            return Err(GithubToolError(format!("GitHub API returned {}: {}", resp.status(), api_url)));
+            let tree_url_master = format!("https://api.github.com/repos/{}/{}/git/trees/master?recursive=1", owner, repo);
+            resp = client.get(&tree_url_master)
+                .header("User-Agent", "AIGENT-Bot")
+                .send()
+                .await
+                .map_err(|e| GithubToolError(format!("Failed to fetch tree (master): {}", e)))?;
         }
 
-        let json: serde_json::Value = resp.json().await
-            .map_err(|e| GithubToolError(format!("Failed to parse JSON: {}", e)))?;
+        if !resp.status().is_success() {
+            return Err(GithubToolError(format!("GitHub API Error: {}", resp.status())));
+        }
 
-        // Handle file vs directory
-        if json.is_array() {
-            // It's a directory listing
-            let files = json.as_array().unwrap();
-            let mut list = String::from("Repository Directory Listing:\n");
-            for file in files.iter().take(20) {
-                let name = file["name"].as_str().unwrap_or("unknown");
-                let type_str = file["type"].as_str().unwrap_or("file");
-                list.push_str(&format!("- [{}] {}\n", type_str, name));
+        let tree_json: serde_json::Value = resp.json().await.map_err(|e| GithubToolError(e.to_string()))?;
+        let tree = tree_json["tree"].as_array().ok_or_else(|| GithubToolError("Invalid tree response".into()))?;
+
+        // 2. Filter high-signal files
+        let high_signal_exts = [".rs", ".toml", ".ts", ".js", ".py", ".sol", ".go", ".c", ".cpp"];
+        let mut context_block = String::from("REPOSITORY CONTEXT BLOCK:\n\n");
+        let mut files_to_fetch = Vec::new();
+
+        for item in tree {
+            let path = item["path"].as_str().unwrap_or("");
+            let type_str = item["type"].as_str().unwrap_or("");
+
+            if type_str == "blob" && high_signal_exts.iter().any(|ext| path.ends_with(ext)) {
+                if !path.contains("node_modules") && !path.contains("target/") && !path.contains("dist/") {
+                    files_to_fetch.push(path.to_string());
+                }
             }
-            Ok(format!("{}\n\nPlease ask to fetch a specific file from this list for deep analysis.", list))
+        }
+
+        // 3. Aggregate content (limit to top 10 files to avoid context explosion)
+        for path in files_to_fetch.iter().take(10) {
+            let content_url = format!("https://api.github.com/repos/{}/{}/contents/{}", owner, repo, path);
+            let file_resp = client.get(&content_url)
+                .header("User-Agent", "AIGENT-Bot")
+                .send()
+                .await;
+
+            if let Ok(res) = file_resp {
+                if let Ok(json) = res.json::<serde_json::Value>().await {
+                    if let Some(content_b64) = json["content"].as_str() {
+                        let content_b64 = content_b64.replace('\n', "").replace('\r', "");
+                        if let Ok(decoded_bytes) = general_purpose::STANDARD.decode(content_b64) {
+                            if let Ok(decoded) = String::from_utf8(decoded_bytes) {
+                                context_block.push_str(&format!("--- FILE: {} ---\n{}\n\n", path, decoded));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let reminder = "\n\n[SYSTEM REMINDER: You are CIPHER. Do NOT output this raw code. You must now write a highly conversational, professional security audit report analyzing the architecture and identifying any vulnerabilities in the code above.]";
+
+        if context_block.len() > 15000 {
+            Ok(format!("{}... [CONTEXT TRUNCATED]{}", &context_block[..15000], reminder))
         } else {
-            // It's a single file
-            let content_base64 = json["content"].as_str()
-                .ok_or_else(|| GithubToolError("No content field in API response".into()))?
-                .replace('\n', "")
-                .replace('\r', "");
-            
-            use base64::{Engine as _, engine::general_purpose};
-            let decoded_bytes = general_purpose::STANDARD.decode(content_base64)
-                .map_err(|e| GithubToolError(format!("Base64 decode failed: {}", e)))?;
-            
-            let decoded = String::from_utf8(decoded_bytes)
-                .map_err(|e| GithubToolError(format!("UTF-8 decode failed: {}", e)))?;
-
-            if decoded.len() > 15000 {
-                Ok(format!("{}... [TRUNCATED]", &decoded[..15000]))
-            } else {
-                Ok(decoded)
-            }
+            Ok(format!("{}{}", context_block, reminder))
         }
     }
 }

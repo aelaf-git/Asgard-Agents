@@ -39,6 +39,7 @@ const EXAMPLE_PROMPTS: Record<string, string[]> = {
 
 export default function TaskPromptForm({ agent, onJobCreated }: TaskPromptFormProps) {
   const [prompt, setPrompt] = useState('');
+  const [amount, setAmount] = useState('0.001');
   const [githubUrl, setGithubUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { connected } = useWallet();

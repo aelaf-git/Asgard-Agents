@@ -7,7 +7,7 @@ export const AI_AGENTS: AgentProfile[] = [
     role: 'Cyber-Security Engineer (Agentic)',
     description: 'High-performance agentic auditor upgraded with Rig. Can fetch and analyze real public GitHub repositories in real-time. Performs deep-scans for vulnerabilities, gas optimizations, and logic flaws.',
     specialties: ['GitHub Integration', 'Smart Contract Audit', 'Gas Optimization', 'Vulnerability Detection'],
-    priceSOL: 0.5,
+    priceSOL: 0.001,
     rating: 4.9,
     completedJobs: 1247,
     avatar: 'C',

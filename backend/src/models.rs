@@ -19,15 +19,18 @@ pub struct ExecuteJobRequest {
     pub amount: f64,
 }
 
-/// POST /api/job/complete — Sign complete_job on-chain
+/// POST /api/job/finalize — Approve or Reject a job
 #[derive(Debug, Deserialize)]
-pub struct CompleteJobOnchainRequest {
-    /// Unique job ID
+pub struct FinalizeJobRequest {
     pub job_id: String,
-    /// Employer's public key (base58)
     pub employer: String,
-    /// The result hash to submit on-chain
-    pub result_hash: String,
+    pub approve: bool,
+}
+
+pub struct PendingJob {
+    pub result: String,
+    pub hash: String,
+    pub employer: String,
 }
 
 // =============================================================================

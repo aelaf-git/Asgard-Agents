@@ -31,7 +31,7 @@ hex = "0.4"
 base64 = "0.21"
 
 # AI Framework
-rig-core = "0.5"
+rig-core = "0.5.0"
 
 # Utilities
 chrono = { version = "0.4", features = ["serde"] }
@@ -41,3 +41,6 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 thiserror = "1"
 anyhow = "1"
+futures-util = "0.3"
+dashmap = "5.5"
+tokio-stream = "0.1"

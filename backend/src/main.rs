@@ -23,11 +23,15 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use crate::config::AppConfig;
 use crate::services::{ai::AiService, solana::SolanaService};
 
+use dashmap::DashMap;
+use crate::models::PendingJob;
+
 /// Shared application state injected into all route handlers
 pub struct AppState {
     pub config: AppConfig,
     pub ai_service: AiService,
     pub solana_service: SolanaService,
+    pub pending_jobs: DashMap<String, PendingJob>,
 }
 
 #[tokio::main]
@@ -58,6 +62,7 @@ async fn main() -> anyhow::Result<()> {
         config: config.clone(),
         ai_service,
         solana_service,
+        pending_jobs: DashMap::new(),
     });
 
     // CORS — allow frontend origins
@@ -72,7 +77,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/agent/info", get(routes::agent::agent_info))
         .route("/api/job/execute", post(routes::job::execute_job))
         .route("/api/job/status/:job_id", get(routes::job::job_status))
-        .route("/api/job/complete", post(routes::job::complete_job_onchain))
+        .route("/api/job/finalize", post(routes::job::finalize_job))
         .layer(cors)
         .layer(TraceLayer::new_for_http())
         .with_state(state);
