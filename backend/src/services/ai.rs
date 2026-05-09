@@ -10,22 +10,19 @@ use rig::providers::openai;
 use rig::completion::Prompt;
 use crate::config::{AppConfig, AiProvider};
 use crate::error::AppError;
-use crate::services::agent_tools::GithubFetcher;
 
 /// System prompts per agent specialization
 fn get_system_prompt(agent_id: &str) -> &'static str {
     match agent_id {
-        "code-auditor" => "You are CIPHER, a world-class agentic cybersecurity analyst. \
-            Your goal is to perform a deep-source audit of the provided repository context. \
+        "architect" => "You are NEXUS, a world-class Principal System Architect. \
+            Your goal is to design scalable, secure, and modern system architectures based on user requirements. \
             \
             CRITICAL RULES: \
-            1. NEVER simply echo the source code or tool outputs. \
-            2. ALWAYS summarize the repository's architecture and purpose first. \
-            3. Act as a human auditor: write in a conversational, professional tone. \
-            4. Identify potential vulnerabilities (security, logic, or performance) and explain them clearly. \
-            5. Provide actionable remediation steps. \
-            \
-            Structure your response as a polished chat-style report, not a data dump.",
+            1. Always provide a detailed, conversational breakdown of the architecture (Frontend, Backend, Database, Infrastructure). \
+            2. You MUST generate at least one architecture diagram using `mermaid` syntax. \
+            3. Use ```mermaid code blocks for your diagrams. \
+            4. Keep the diagrams clean and easy to read (e.g. graph TD, sequenceDiagram, erDiagram). \
+            5. Explain trade-offs for the technical choices you make.",
         "sentiment-analyst" => {
             "You are PRISM, a high-frequency market sentiment analyst. \
              Analyze the provided data or query for social sentiment, whale activity, and market momentum. \
@@ -84,39 +81,12 @@ impl AiService {
         let system_prompt = get_system_prompt(agent_id);
         let client = openai::Client::from_url(&self.api_key, "https://api.groq.com/openai");
         
-        let mut final_prompt = user_prompt.to_string();
-
-        // MANUALLY handle the GitHub fetching to prevent the LLM from getting confused by tool loops
-        if agent_id == "code-auditor" && user_prompt.contains("http") {
-            tracing::info!("Extracting GitHub URL and fetching manually...");
-            
-            // Extract URL from prompt
-            let url = user_prompt.split_whitespace().find(|s| s.starts_with("http")).unwrap_or("");
-            if !url.is_empty() {
-                use rig::tool::Tool;
-                let fetcher = GithubFetcher;
-                
-                // Fetch the code
-                if let Ok(context_block) = fetcher.call(serde_json::json!({ "url": url })).await {
-                    tracing::info!("Successfully fetched {} chars of code", context_block.len());
-                    final_prompt = format!(
-                        "Analyze the following repository codebase and provide a professional, conversational security audit report. \
-                        Do NOT output the raw code. Focus on architecture, vulnerabilities, and actionable advice.\n\n\
-                        REPOSITORY CODE:\n{}\n\n\
-                        USER INSTRUCTIONS: {}",
-                        context_block,
-                        user_prompt
-                    );
-                }
-            }
-        }
-
         let agent = client.agent(self.model.as_str())
             .preamble(system_prompt)
             .build();
 
-        // Fallback: Run full prompt then stream the result
-        let response = agent.prompt(&final_prompt)
+        // Run full prompt then stream the result
+        let response = agent.prompt(user_prompt)
             .await
             .map_err(|e| AppError::AiError(format!("Agent execution failed: {}", e)))?;
 
@@ -131,7 +101,7 @@ impl AiService {
     /// Execute a Rig Agent loop with Tool support (Non-streaming)
     async fn run_rig_agent(
         &self,
-        agent_id: &str,
+        _agent_id: &str,
         system_prompt: &str,
         user_prompt: &str,
     ) -> Result<String, AppError> {
@@ -139,15 +109,9 @@ impl AiService {
         let client = openai::Client::from_url(&self.api_key, "https://api.groq.com/openai");
 
         // Build the agent
-        let mut agent_builder = client.agent(self.model.as_str())
-            .preamble(system_prompt);
-
-        // Attach tools only to CIPHER for high performance and specialization
-        if agent_id == "code-auditor" {
-            agent_builder = agent_builder.tool(GithubFetcher);
-        }
-
-        let agent = agent_builder.build();
+        let agent = client.agent(self.model.as_str())
+            .preamble(system_prompt)
+            .build();
 
         // Run the agent prompt
         let response = agent.prompt(user_prompt)
@@ -160,7 +124,7 @@ impl AiService {
     fn mock_response(&self, agent_id: &str, prompt: &str) -> String {
         let truncated = if prompt.len() > 60 { &prompt[..60] } else { prompt };
         match agent_id {
-            "code-auditor" => format!("## CIPHER AUDIT REPORT (MOCK)\nTarget: {}\n\nAnalysis complete. No critical vulnerabilities found in simulation.", truncated),
+            "architect" => format!("## NEXUS ARCHITECTURE (MOCK)\nSystem: {}\n\n```mermaid\ngraph TD\nA-->B;\n```", truncated),
             _ => format!("## AGENT RESPONSE (MOCK)\nTask: {}\n\nProcessed successfully.", truncated),
         }
     }

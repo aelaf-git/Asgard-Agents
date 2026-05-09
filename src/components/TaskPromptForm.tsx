@@ -40,22 +40,16 @@ const EXAMPLE_PROMPTS: Record<string, string[]> = {
 export default function TaskPromptForm({ agent, onJobCreated }: TaskPromptFormProps) {
   const [prompt, setPrompt] = useState('');
   const [amount, setAmount] = useState('0.001');
-  const [githubUrl, setGithubUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { connected } = useWallet();
   const { createJob, isExecuting } = useJobs();
 
-  const isCipher = agent.id === 'code-auditor';
   const examples = EXAMPLE_PROMPTS[agent.id] || [];
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     
     let finalPrompt = prompt.trim();
-    if (isCipher) {
-      if (!githubUrl.trim()) return;
-      finalPrompt = `Analyze this GitHub repository: ${githubUrl.trim()}\n\nAdditional Instructions: ${prompt.trim() || 'Perform a standard security audit.'}`;
-    }
 
     if (!finalPrompt || !connected || isExecuting) return;
 
@@ -70,55 +64,22 @@ export default function TaskPromptForm({ agent, onJobCreated }: TaskPromptFormPr
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {isCipher ? (
-        <>
-          {/* GitHub URL Input */}
-          <div className="space-y-2">
-            <label className="font-mono text-[11px] text-primary tracking-wider uppercase block">
-              GitHub Repository URL
-            </label>
-            <input
-              type="text"
-              value={githubUrl}
-              onChange={(e) => setGithubUrl(e.target.value)}
-              placeholder="https://github.com/user/repo/blob/main/contract.rs"
-              className="w-full px-4 py-3 rounded-lg bg-void border border-border text-foreground font-mono text-sm placeholder:text-muted-foreground/30 focus-neon transition-all"
-              disabled={isSubmitting}
-            />
-          </div>
-
-          {/* Optional Instructions */}
-          <div className="space-y-2">
-            <label className="font-mono text-[11px] text-muted-foreground tracking-wider uppercase block">
-              Additional Instructions (Optional)
-            </label>
-            <textarea
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder="e.g. Focus on reentrancy vulnerabilities..."
-              className="w-full h-24 px-4 py-3 rounded-lg bg-void border border-border text-foreground font-mono text-sm placeholder:text-muted-foreground/30 resize-none focus-neon transition-all"
-              disabled={isSubmitting}
-            />
-          </div>
-        </>
-      ) : (
-        /* Standard Prompt Input */
-        <div className="space-y-2">
-          <label className="font-mono text-[11px] text-muted-foreground tracking-wider uppercase block">
-            Task Prompt
-          </label>
-          <textarea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder={`Describe the task for ${agent.name}...`}
-            className="w-full h-32 px-4 py-3 rounded-lg bg-void border border-border text-foreground font-mono text-sm placeholder:text-muted-foreground/50 resize-none focus-neon transition-all"
-            disabled={isSubmitting}
-          />
-        </div>
-      )}
+      {/* Standard Prompt Input */}
+      <div className="space-y-2">
+        <label className="font-mono text-[11px] text-muted-foreground tracking-wider uppercase block">
+          Task Prompt
+        </label>
+        <textarea
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          placeholder={`Describe the task for ${agent.name}...`}
+          className="w-full h-32 px-4 py-3 rounded-lg bg-void border border-border text-foreground font-mono text-sm placeholder:text-muted-foreground/50 resize-none focus-neon transition-all"
+          disabled={isSubmitting}
+        />
+      </div>
 
       {/* Example prompts */}
-      {examples.length > 0 && !isCipher && (
+      {examples.length > 0 && (
         <div className="space-y-1.5">
           <span className="font-mono text-[10px] text-muted-foreground tracking-wider uppercase">
             Examples

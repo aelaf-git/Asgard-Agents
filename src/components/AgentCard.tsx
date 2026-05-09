@@ -19,10 +19,10 @@ export default function AgentCard({ agent, index }: AgentCardProps) {
   const cat = CATEGORY_CONFIG[agent.category];
   const CatIcon = cat.icon;
 
-  const isCipher = agent.id === 'code-auditor';
+  const isAvailable = agent.status === 'online' || agent.status === 'busy';
 
   const CardContent = (
-    <div className={`cyber-card rounded-lg p-5 h-full flex flex-col animate-fade-in-up ${!isCipher ? 'opacity-60 grayscale' : ''}`}>
+    <div className={`cyber-card rounded-lg p-5 h-full flex flex-col animate-fade-in-up ${!isAvailable ? 'opacity-60 grayscale' : ''}`}>
         {/* Header */}
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
@@ -44,18 +44,13 @@ export default function AgentCard({ agent, index }: AgentCardProps) {
                 <h3 className="font-mono text-sm font-bold tracking-wider text-foreground group-hover:text-primary transition-colors">
                   {agent.name}
                 </h3>
-                {isCipher && (
-                  <span className="px-1.5 py-0.5 rounded bg-primary/20 text-[8px] font-mono text-primary border border-primary/30 animate-pulse">
-                    AGENTIC
-                  </span>
-                )}
               </div>
               <p className="text-[11px] font-mono text-muted-foreground tracking-wide uppercase">
                 {agent.role}
               </p>
             </div>
           </div>
-          {isCipher && <ArrowUpRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:text-primary transition-all -translate-y-1 group-hover:translate-y-0" />}
+          {isAvailable && <ArrowUpRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:text-primary transition-all -translate-y-1 group-hover:translate-y-0" />}
         </div>
 
         {/* Description */}
@@ -92,13 +87,13 @@ export default function AgentCard({ agent, index }: AgentCardProps) {
             </div>
           </div>
           <span className="font-mono text-xs font-bold text-primary">
-            {isCipher ? `${agent.priceSOL} SOL` : 'COMING SOON'}
+            {isAvailable ? `${agent.priceSOL} SOL` : 'COMING SOON'}
           </span>
         </div>
       </div>
   );
 
-  if (!isCipher) {
+  if (!isAvailable) {
     return (
       <div className="block cursor-not-allowed">
         {CardContent}

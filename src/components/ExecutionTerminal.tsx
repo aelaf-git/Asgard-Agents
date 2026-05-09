@@ -12,6 +12,38 @@ import {
   ExternalLink,
   ArrowLeft,
 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeSanitize from 'rehype-sanitize';
+import mermaid from 'mermaid';
+
+mermaid.initialize({ startOnLoad: false, theme: 'dark' });
+
+const MermaidDiagram = ({ chart }: { chart: string }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    if (ref.current && chart) {
+      try {
+        const id = `mermaid-${Math.random().toString(36).substr(2, 9)}`;
+        mermaid.render(id, chart).then((result) => {
+          if (ref.current) {
+            ref.current.innerHTML = result.svg;
+          }
+        }).catch(e => {
+          console.error('Mermaid render failed:', e);
+          if (ref.current) {
+             ref.current.innerHTML = `<pre class="text-destructive text-xs border border-destructive/30 p-2 rounded">${e.message}</pre>`;
+          }
+        });
+      } catch (error) {
+        console.error(error);
+      }
+    }
+  }, [chart]);
+
+  return <div ref={ref} className="my-6 p-4 bg-void/50 rounded-lg border border-border overflow-x-auto flex justify-center w-full" />;
+};
 
 const STATUS_ICONS = {
   pending: Circle,
@@ -231,10 +263,44 @@ export default function ExecutionTerminal({ onBack }: ExecutionTerminalProps) {
           </div>
 
           {/* Result content */}
-          <div className="px-4 py-4 max-h-[500px] overflow-y-auto">
-            <pre className="font-mono text-xs text-secondary-foreground whitespace-pre-wrap leading-relaxed">
-              {activeJob.result}
-            </pre>
+          <div className="px-6 py-6 max-h-[600px] overflow-y-auto custom-scrollbar bg-secondary/10">
+            <div className="prose prose-invert prose-sm max-w-none text-secondary-foreground font-mono leading-relaxed">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                rehypePlugins={[rehypeSanitize]}
+                components={{
+                  code({ inline, className, children, ...props }: any) {
+                    const match = /language-(\w+)/.exec(className || '');
+                    const isMermaid = match && match[1] === 'mermaid';
+                    
+                    if (!inline && isMermaid) {
+                      return <MermaidDiagram chart={String(children).replace(/\n$/, '')} />;
+                    }
+                    
+                    return !inline ? (
+                      <div className="bg-void p-4 rounded-lg my-4 overflow-x-auto border border-border/50 shadow-inner">
+                        <code className={className} {...props}>
+                          {children}
+                        </code>
+                      </div>
+                    ) : (
+                      <code className="bg-primary/20 text-primary px-1.5 py-0.5 rounded text-[11px]" {...props}>
+                        {children}
+                      </code>
+                    );
+                  },
+                  h1: ({node, ...props}) => <h1 className="text-primary text-xl font-bold mt-6 mb-4 pb-2 border-b border-border/50 tracking-wider" {...props} />,
+                  h2: ({node, ...props}) => <h2 className="text-foreground text-lg font-bold mt-5 mb-3 tracking-wide" {...props} />,
+                  h3: ({node, ...props}) => <h3 className="text-foreground text-base font-bold mt-4 mb-2" {...props} />,
+                  ul: ({node, ...props}) => <ul className="list-disc list-inside space-y-1 my-3 text-muted-foreground" {...props} />,
+                  ol: ({node, ...props}) => <ol className="list-decimal list-inside space-y-1 my-3 text-muted-foreground" {...props} />,
+                  a: ({node, ...props}) => <a className="text-primary hover:text-primary/80 underline decoration-primary/30 underline-offset-2 transition-colors" target="_blank" rel="noopener noreferrer" {...props} />,
+                  p: ({node, ...props}) => <p className="my-3 leading-loose" {...props} />,
+                }}
+              >
+                {activeJob.result || ''}
+              </ReactMarkdown>
+            </div>
           </div>
 
           {/* Result hash */}
