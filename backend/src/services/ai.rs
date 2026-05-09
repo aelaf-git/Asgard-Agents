@@ -90,8 +90,7 @@ impl AiService {
         let system_prompt = get_system_prompt(agent_id);
 
         let result = match &self.provider {
-            AiProvider::OpenAi => self.call_openai(system_prompt, prompt).await?,
-            AiProvider::Grok => self.call_grok(system_prompt, prompt).await?,
+            AiProvider::Groq => self.call_groq(system_prompt, prompt).await?,
             AiProvider::Mock => self.mock_response(agent_id, prompt),
         };
 
@@ -105,79 +104,40 @@ impl AiService {
     }
 
     // =========================================================================
-    // OpenAI Provider
+    // Groq Provider (OpenAI-compatible)
     // =========================================================================
 
-    async fn call_openai(&self, system_prompt: &str, user_prompt: &str) -> Result<String, AppError> {
+    async fn call_groq(&self, system_prompt: &str, user_prompt: &str) -> Result<String, AppError> {
         let body = serde_json::json!({
             "model": self.model,
             "messages": [
                 { "role": "system", "content": system_prompt },
                 { "role": "user", "content": user_prompt }
             ],
-            "max_tokens": 2000,
+            "max_tokens": 2048,
             "temperature": 0.7
         });
 
         let resp = self.client
-            .post("https://api.openai.com/v1/chat/completions")
+            .post("https://api.groq.com/openai/v1/chat/completions")
             .header("Authorization", format!("Bearer {}", self.api_key))
             .json(&body)
             .send()
             .await
-            .map_err(|e| AppError::AiError(format!("OpenAI request failed: {}", e)))?;
+            .map_err(|e| AppError::AiError(format!("Groq request failed: {}", e)))?;
 
         if !resp.status().is_success() {
             let status = resp.status();
             let text = resp.text().await.unwrap_or_default();
-            return Err(AppError::AiError(format!("OpenAI {} — {}", status, text)));
+            return Err(AppError::AiError(format!("Groq {} — {}", status, text)));
         }
 
         let json: serde_json::Value = resp.json().await
-            .map_err(|e| AppError::AiError(format!("Failed to parse OpenAI response: {}", e)))?;
+            .map_err(|e| AppError::AiError(format!("Failed to parse Groq response: {}", e)))?;
 
         let content = json["choices"][0]["message"]["content"]
             .as_str()
-            .ok_or_else(|| AppError::AiError("No content in OpenAI response".into()))?;
-
-        Ok(content.to_string())
-    }
-
-    // =========================================================================
-    // Grok (xAI) Provider
-    // =========================================================================
-
-    async fn call_grok(&self, system_prompt: &str, user_prompt: &str) -> Result<String, AppError> {
-        let body = serde_json::json!({
-            "model": "grok-3",
-            "messages": [
-                { "role": "system", "content": system_prompt },
-                { "role": "user", "content": user_prompt }
-            ],
-            "max_tokens": 2000,
-            "temperature": 0.7
-        });
-
-        let resp = self.client
-            .post("https://api.x.ai/v1/chat/completions")
-            .header("Authorization", format!("Bearer {}", self.api_key))
-            .json(&body)
-            .send()
-            .await
-            .map_err(|e| AppError::AiError(format!("Grok request failed: {}", e)))?;
-
-        if !resp.status().is_success() {
-            let status = resp.status();
-            let text = resp.text().await.unwrap_or_default();
-            return Err(AppError::AiError(format!("Grok {} — {}", status, text)));
-        }
-
-        let json: serde_json::Value = resp.json().await
-            .map_err(|e| AppError::AiError(format!("Failed to parse Grok response: {}", e)))?;
-
-        let content = json["choices"][0]["message"]["content"]
-            .as_str()
-            .ok_or_else(|| AppError::AiError("No content in Grok response".into()))?;
+            .ok_or_else(|| AppError::AiError("No content in Groq response".into()))?;
 
         Ok(content.to_string())
     }

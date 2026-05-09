@@ -3,8 +3,7 @@ use anyhow::{Context, Result};
 /// AI provider variants
 #[derive(Debug, Clone)]
 pub enum AiProvider {
-    OpenAi,
-    Grok,
+    Groq,
     Mock,
 }
 
@@ -30,8 +29,7 @@ impl AppConfig {
     pub fn from_env() -> Result<Self> {
         let ai_provider_str = std::env::var("AI_PROVIDER").unwrap_or_else(|_| "mock".into());
         let ai_provider = match ai_provider_str.to_lowercase().as_str() {
-            "openai" => AiProvider::OpenAi,
-            "grok" => AiProvider::Grok,
+            "groq" => AiProvider::Groq,
             _ => AiProvider::Mock,
         };
 
@@ -45,7 +43,7 @@ impl AppConfig {
             ai_provider,
             ai_api_key: std::env::var("AI_API_KEY").unwrap_or_default(),
             ai_model: std::env::var("AI_MODEL")
-                .unwrap_or_else(|_| "gpt-4o".into()),
+                .unwrap_or_else(|_| "llama-3.3-70b-versatile".into()),
             host: std::env::var("HOST").unwrap_or_else(|_| "0.0.0.0".into()),
             port: std::env::var("PORT")
                 .unwrap_or_else(|_| "3001".into())
