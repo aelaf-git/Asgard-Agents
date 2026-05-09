@@ -26,7 +26,8 @@ export async function executeAgentTask(
   amount: number,
   file: File | null,
   onStepUpdate: (stepIndex: number, status: ExecutionStep['status'], detail?: string) => void,
-  onChunk: (chunk: string) => void
+  onChunk: (chunk: string) => void,
+  onProgress?: (progress: { step: string; pct: number }) => void
 ): Promise<{ result: string; resultHash: string }> {
   try {
     onStepUpdate(0, 'active', 'Validating task parameters...');
@@ -77,6 +78,16 @@ export async function executeAgentTask(
           const line = lines[i];
           if (line.startsWith('data: ')) {
             const data = line.slice(6);
+            if (data.startsWith('{"type":"progress"')) {
+              try {
+                const p = JSON.parse(data);
+                if (p.type === 'progress' && onProgress) {
+                  onProgress({ step: p.step, pct: p.pct });
+                }
+              } catch (e) {}
+              continue;
+            }
+
             if (data.startsWith('{"hash"') || data.startsWith('{"job_id"')) {
               try {
                 const payload = JSON.parse(data);

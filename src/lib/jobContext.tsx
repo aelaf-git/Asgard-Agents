@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
-import { Job, JobStatus, ExecutionStep, AgentProfile, JobContextType, INITIAL_STEPS } from './types';
+import { Job, JobStatus, ExecutionStep, AgentProfile, JobContextType, RagProgress, INITIAL_STEPS } from './types';
 import { executeAgentTask, finalizeAgentJob } from './agentService';
 import { useSolanaProgram } from '@/hooks/useSolanaProgram';
 import { PublicKey } from '@solana/web3.js';
@@ -11,6 +11,7 @@ export function JobProvider({ children }: { children: ReactNode }) {
   const [activeJob, setActiveJob] = useState<Job | null>(null);
   const [executionSteps, setExecutionSteps] = useState<ExecutionStep[]>(INITIAL_STEPS);
   const [isExecuting, setIsExecuting] = useState(false);
+  const [ragProgress, setRagProgress] = useState<RagProgress | null>(null);
   const { sdk, publicKey } = useSolanaProgram();
 
   const updateStep = useCallback((index: number, status: ExecutionStep['status'], detail?: string) => {
@@ -75,8 +76,11 @@ export function JobProvider({ children }: { children: ReactNode }) {
           updateStep,
           (chunk) => {
             setActiveJob(prev => prev ? { ...prev, result: (prev.result || "") + chunk } : null);
-          }
+          },
+          (progress) => setRagProgress(progress)
         );
+
+        setRagProgress(null);
 
         const reviewJob: Job = {
           ...newJob,
@@ -151,18 +155,19 @@ export function JobProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <JobContext.Provider
-      value={{
-        jobs,
-        activeJob,
-        executionSteps,
-        isExecuting,
-        createJob,
-        cancelJob,
-        clearActiveJob,
-        finalizeJob,
-      }}
-    >
+      <JobContext.Provider
+        value={{
+          jobs,
+          activeJob,
+          executionSteps,
+          isExecuting,
+          ragProgress,
+          createJob,
+          cancelJob,
+          clearActiveJob,
+          finalizeJob,
+        }}
+      >
       {children}
     </JobContext.Provider>
   );

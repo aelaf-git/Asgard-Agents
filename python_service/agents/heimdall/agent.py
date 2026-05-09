@@ -3,7 +3,7 @@ from typing import AsyncGenerator
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_groq import ChatGroq
 
-NEXUS_SYSTEM_PROMPT = """You are NEXUS, a world-class Principal System Architect with 20+ years of experience designing enterprise systems.
+HEIMDALL_SYSTEM_PROMPT = """You are HEIMDALL, the all-seeing Asgardian architect. You design flawless systems.
 
 Your expertise includes:
 - Microservices & Monolithic architectures
@@ -31,14 +31,14 @@ Format your response with:
 - Implementation Phases
 - Cost Analysis"""
 
-async def stream_nexus_task(prompt: str, conversation_history: list | None = None) -> AsyncGenerator[str, None]:
+async def stream_heimdall_task(prompt: str, conversation_history: list | None = None) -> AsyncGenerator[str, None]:
     llm = ChatGroq(
         model="llama-3.3-70b-versatile",
         temperature=0.7,
         groq_api_key=os.getenv("AI_API_KEY")
     )
     
-    messages = [SystemMessage(content=NEXUS_SYSTEM_PROMPT)]
+    messages = [SystemMessage(content=HEIMDALL_SYSTEM_PROMPT)]
     
     if conversation_history:
         for msg in conversation_history:

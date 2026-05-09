@@ -1,4 +1,5 @@
 import os
+import json
 import tempfile
 from typing import AsyncGenerator
 from langchain_community.document_loaders import PyPDFLoader
@@ -11,7 +12,7 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_groq import ChatGroq
 
-TEACHER_PROMPT_TEMPLATE = """You are an expert teacher. Your role is to educate, clarify, and guide the student using only the provided document context.
+ODIN_PROMPT_TEMPLATE = """You are ODIN, the All-Father of knowledge. Your role is to educate, clarify, and guide the student using only the provided document context.
 
 ## Teaching Style
 - Start with a brief, warm acknowledgement of the question.
@@ -38,7 +39,7 @@ Teacher's Response:"""
 SESSION_INDEXES = {}
 SESSION_HISTORY = {}
 
-async def stream_teacher_task(prompt: str, pdf_bytes: bytes | None, job_id: str) -> AsyncGenerator[str, None]:
+async def stream_odin_task(prompt: str, pdf_bytes: bytes | None, job_id: str) -> AsyncGenerator[str, None]:
     llm = ChatGroq(
         model="llama-3.3-70b-versatile",
         temperature=0.3,
@@ -52,24 +53,30 @@ async def stream_teacher_task(prompt: str, pdf_bytes: bytes | None, job_id: str)
             temp_pdf_path = temp_pdf.name
 
         try:
-            yield "*(System: Reading PDF and building vector index...)*\n\n"
+            yield json.dumps({"type": "progress", "step": "Reading PDF pages...", "pct": 10}) + "\n"
 
             loader = PyPDFLoader(temp_pdf_path)
             docs = loader.load()
 
+            yield json.dumps({"type": "progress", "step": "Splitting text into chunks...", "pct": 35}) + "\n"
+
             text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
             splits = text_splitter.split_documents(docs)
 
+            yield json.dumps({"type": "progress", "step": "Building vector index with embeddings...", "pct": 60}) + "\n"
+
             embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
             vectorstore = FAISS.from_documents(documents=splits, embedding=embeddings)
-            
+
             # Save to global memory
             SESSION_INDEXES[job_id] = vectorstore
             SESSION_HISTORY[job_id] = []
 
+            yield json.dumps({"type": "progress", "step": "Generating answer from document...", "pct": 85}) + "\n"
+
             # First prompt processing
             retriever = vectorstore.as_retriever(search_kwargs={"k": 4})
-            chat_prompt = ChatPromptTemplate.from_template(TEACHER_PROMPT_TEMPLATE)
+            chat_prompt = ChatPromptTemplate.from_template(ODIN_PROMPT_TEMPLATE)
             
             def format_docs(docs):
                 return "\n\n".join(doc.page_content for doc in docs)
@@ -83,6 +90,8 @@ async def stream_teacher_task(prompt: str, pdf_bytes: bytes | None, job_id: str)
 
             full_response = ""
             async for chunk in rag_chain.astream(prompt):
+                if not full_response:
+                    yield json.dumps({"type": "progress", "step": "Complete", "pct": 100}) + "\n"
                 full_response += chunk
                 yield chunk
                 
@@ -103,7 +112,7 @@ async def stream_teacher_task(prompt: str, pdf_bytes: bytes | None, job_id: str)
     history = SESSION_HISTORY.get(job_id, [])
     
     retriever = vectorstore.as_retriever(search_kwargs={"k": 4})
-    chat_prompt = ChatPromptTemplate.from_template(TEACHER_PROMPT_TEMPLATE)
+    chat_prompt = ChatPromptTemplate.from_template(ODIN_PROMPT_TEMPLATE)
     
     def format_docs(docs):
         return "\n\n".join(doc.page_content for doc in docs)

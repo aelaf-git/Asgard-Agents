@@ -44,12 +44,18 @@ export interface ExecutionStep {
   timestamp?: number;
 }
 
+export interface RagProgress {
+  step: string;
+  pct: number;
+}
+
 export interface JobContextType {
   jobs: Job[];
   activeJob: Job | null;
   executionSteps: ExecutionStep[];
   isExecuting: boolean;
-  createJob: (agent: AgentProfile, prompt: string, amount: number) => Promise<void>;
+  ragProgress: RagProgress | null;
+  createJob: (agent: AgentProfile, prompt: string, amount: number, file?: File | null) => Promise<void>;
   cancelJob: (jobId: string) => void;
   clearActiveJob: () => void;
   finalizeJob: (approve: boolean) => Promise<void>;

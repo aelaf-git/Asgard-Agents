@@ -6,8 +6,8 @@ from fastapi import FastAPI, Form, File, UploadFile
 from typing import Optional
 from sse_starlette.sse import EventSourceResponse
 
-from agents.nexus.agent import stream_nexus_task
-from agents.teacher.agent import stream_teacher_task
+from agents.heimdall.agent import stream_heimdall_task
+from agents.odin.agent import stream_odin_task
 from agents.idunn.agent import stream_idunn_task
 
 app = FastAPI(title="Asgard Agents Python Microservice")
@@ -22,7 +22,7 @@ async def execute_job(
     async def event_generator():
         try:
             if agent_id == "heimdall":
-                async for chunk in stream_nexus_task(prompt):
+                async for chunk in stream_heimdall_task(prompt):
                     yield {"data": chunk}
 
             elif agent_id == "odin":
@@ -31,7 +31,7 @@ async def execute_job(
                 else:
                     pdf_bytes = None
 
-                async for chunk in stream_teacher_task(prompt, pdf_bytes, job_id):
+                async for chunk in stream_odin_task(prompt, pdf_bytes, job_id):
                     yield {"data": chunk}
 
             elif agent_id == "idunn":

@@ -17,6 +17,11 @@ import {
   User,
   Bot,
   RefreshCcw,
+  FileText,
+  Search,
+  Layers,
+  Database,
+  MessageSquare,
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -439,10 +444,91 @@ function StandardTerminal({ onBack }: { onBack?: () => void }) {
 }
 
 // ─────────────────────────────────────────────
+// RAG PROCESSING OVERLAY
+// ─────────────────────────────────────────────
+const RAG_STEPS = [
+  { icon: FileText, label: 'Reading PDF', pct: 10 },
+  { icon: Layers, label: 'Splitting text', pct: 35 },
+  { icon: Database, label: 'Building index', pct: 60 },
+  { icon: Search, label: 'Generating answer', pct: 85 },
+  { icon: MessageSquare, label: 'Complete', pct: 100 },
+];
+
+function RagProcessingOverlay({ progress }: { progress: { step: string; pct: number } }) {
+  const currentStep = RAG_STEPS.findIndex(s => s.pct === Math.min(...RAG_STEPS.filter(x => progress.pct <= x.pct).map(x => x.pct)));
+
+  return (
+    <div className="cyber-card rounded-xl overflow-hidden border border-primary/20"
+         style={{ background: 'linear-gradient(160deg, hsl(230 20% 6%) 0%, hsl(240 15% 8%) 100%)' }}>
+      <div className="px-6 py-8 space-y-6">
+        <div className="flex items-center gap-3">
+          <BookOpen className="h-6 w-6 text-primary" />
+          <div>
+            <p className="font-semibold text-foreground text-sm">Odin is studying your document</p>
+            <p className="font-mono text-[11px] text-muted-foreground">This takes a few seconds</p>
+          </div>
+        </div>
+
+        {/* Progress bar */}
+        <div className="space-y-2">
+          <div className="h-2 rounded-full bg-void border border-border overflow-hidden">
+            <motion.div
+              className="h-full rounded-full bg-gradient-to-r from-primary to-neon-green"
+              initial={{ width: 0 }}
+              animate={{ width: `${progress.pct}%` }}
+              transition={{ duration: 0.5, ease: 'easeOut' }}
+            />
+          </div>
+          <p className="font-mono text-xs text-primary text-right">{progress.pct}%</p>
+        </div>
+
+        {/* Steps */}
+        <div className="space-y-3">
+          {RAG_STEPS.map((step, i) => {
+            const isDone = progress.pct >= step.pct;
+            const isCurrent = !isDone && (i === 0 || progress.pct > RAG_STEPS[i - 1].pct);
+            return (
+              <div key={step.label} className="flex items-center gap-3">
+                <div className={`flex h-7 w-7 items-center justify-center rounded-full border text-xs transition-all ${
+                  isDone
+                    ? 'bg-neon-green/10 border-neon-green/30 text-neon-green'
+                    : isCurrent
+                      ? 'bg-primary/10 border-primary/30 text-primary animate-pulse'
+                      : 'bg-secondary border-border text-muted-foreground'
+                }`}>
+                  <step.icon className="h-3.5 w-3.5" />
+                </div>
+                <span className={`font-mono text-xs transition-all ${
+                  isDone
+                    ? 'text-neon-green line-through opacity-70'
+                    : isCurrent
+                      ? 'text-foreground font-semibold'
+                      : 'text-muted-foreground'
+                }`}>
+                  {step.label}
+                </span>
+                {isCurrent && (
+                  <span className="text-xs ml-auto text-primary">
+                    {progress.step}
+                  </span>
+                )}
+                {isDone && (
+                  <CheckCircle2 className="h-3.5 w-3.5 text-neon-green ml-auto" />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
 // ROOT COMPONENT — Branches based on agent type
 // ─────────────────────────────────────────────
 export default function ExecutionTerminal({ onBack }: ExecutionTerminalProps) {
-  const { activeJob, clearActiveJob } = useJobs();
+  const { activeJob, clearActiveJob, ragProgress } = useJobs();
 
   if (!activeJob) {
     return (
@@ -457,6 +543,11 @@ export default function ExecutionTerminal({ onBack }: ExecutionTerminalProps) {
   const isTeacher = activeJob.agent.id === 'odin';
 
   if (isTeacher) {
+    // Show RAG progress while indexing, then switch to chat
+    if (ragProgress && activeJob.status !== JobStatus.Completed) {
+      return <RagProcessingOverlay progress={ragProgress} />;
+    }
+
     const handleNewSession = () => {
       clearActiveJob();
       if (onBack) onBack();
