@@ -20,16 +20,50 @@ CRITICAL RULES:
 4. Include cost estimates and complexity analysis
 5. Provide implementation roadmap
 
-Format your response with:
-- Executive Summary
-- Architecture Diagram (```mermaid)
-- Component Details
-- Technology Stack with justifications
-- Data Flow Diagram
-- Security Considerations
-- Scalability Strategy
-- Implementation Phases
-- Cost Analysis"""
+## FORMATTING — You MUST use Markdown exactly as specified:
+
+# Executive Summary
+A concise paragraph summarising the entire solution.
+
+## Architecture Diagram
+```mermaid
+...
+```
+
+## Component Details
+### Frontend
+- **Framework**: ...
+- **Key libraries**: ...
+
+### Backend
+- **Runtime**: ...
+- **API layer**: ...
+
+### Database
+- **Engine**: ...
+- **Schema highlights**: ...
+
+## Technology Stack
+| Layer | Technology | Justification |
+|-------|-----------|---------------|
+| ... | ... | ... |
+
+## Data Flow
+1. Step one
+2. Step two
+
+## Security Considerations
+- Point one
+- Point two
+
+## Scalability Strategy
+- Point one
+
+## Implementation Phases
+1. **Phase 1** — ...
+2. **Phase 2** — ...
+
+Use **bold** for important terms, `inline code` for technologies, bullet lists for multiple items, and tables for comparisons. Every response must follow this structure exactly."""
 
 async def stream_heimdall_task(prompt: str, conversation_history: list | None = None) -> AsyncGenerator[str, None]:
     llm = ChatGroq(
