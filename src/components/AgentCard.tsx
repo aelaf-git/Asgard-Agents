@@ -19,13 +19,10 @@ export default function AgentCard({ agent, index }: AgentCardProps) {
   const cat = CATEGORY_CONFIG[agent.category];
   const CatIcon = cat.icon;
 
-  return (
-    <Link
-      to={`/agent/${agent.id}`}
-      className="group block"
-      style={{ animationDelay: `${index * 80}ms` }}
-    >
-      <div className="cyber-card rounded-lg p-5 h-full flex flex-col animate-fade-in-up">
+  const isCipher = agent.id === 'code-auditor';
+
+  const CardContent = (
+    <div className={`cyber-card rounded-lg p-5 h-full flex flex-col animate-fade-in-up ${!isCipher ? 'opacity-60 grayscale' : ''}`}>
         {/* Header */}
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
@@ -43,15 +40,22 @@ export default function AgentCard({ agent, index }: AgentCardProps) {
               />
             </div>
             <div>
-              <h3 className="font-mono text-sm font-bold tracking-wider text-foreground group-hover:text-primary transition-colors">
-                {agent.name}
-              </h3>
+              <div className="flex items-center gap-2">
+                <h3 className="font-mono text-sm font-bold tracking-wider text-foreground group-hover:text-primary transition-colors">
+                  {agent.name}
+                </h3>
+                {isCipher && (
+                  <span className="px-1.5 py-0.5 rounded bg-primary/20 text-[8px] font-mono text-primary border border-primary/30 animate-pulse">
+                    AGENTIC
+                  </span>
+                )}
+              </div>
               <p className="text-[11px] font-mono text-muted-foreground tracking-wide uppercase">
                 {agent.role}
               </p>
             </div>
           </div>
-          <ArrowUpRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:text-primary transition-all -translate-y-1 group-hover:translate-y-0" />
+          {isCipher && <ArrowUpRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:text-primary transition-all -translate-y-1 group-hover:translate-y-0" />}
         </div>
 
         {/* Description */}
@@ -69,11 +73,6 @@ export default function AgentCard({ agent, index }: AgentCardProps) {
               {s}
             </span>
           ))}
-          {agent.specialties.length > 3 && (
-            <span className="px-2 py-0.5 rounded bg-secondary text-[10px] font-mono text-muted-foreground border border-border">
-              +{agent.specialties.length - 3}
-            </span>
-          )}
         </div>
 
         {/* Footer stats */}
@@ -91,15 +90,29 @@ export default function AgentCard({ agent, index }: AgentCardProps) {
                 {agent.rating}
               </span>
             </div>
-            <span className="text-[10px] font-mono text-muted-foreground">
-              {agent.completedJobs.toLocaleString()} jobs
-            </span>
           </div>
           <span className="font-mono text-xs font-bold text-primary">
-            {agent.priceSOL} SOL
+            {isCipher ? `${agent.priceSOL} SOL` : 'COMING SOON'}
           </span>
         </div>
       </div>
+  );
+
+  if (!isCipher) {
+    return (
+      <div className="block cursor-not-allowed">
+        {CardContent}
+      </div>
+    );
+  }
+
+  return (
+    <Link
+      to={`/agent/${agent.id}`}
+      className="group block"
+      style={{ animationDelay: `${index * 80}ms` }}
+    >
+      {CardContent}
     </Link>
   );
 }

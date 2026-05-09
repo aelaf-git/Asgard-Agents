@@ -9,8 +9,7 @@ pub async fn agent_info(
     State(state): State<Arc<AppState>>,
 ) -> Json<AgentInfoResponse> {
     let provider = match &state.config.ai_provider {
-        crate::config::AiProvider::OpenAi => "openai",
-        crate::config::AiProvider::Grok => "grok",
+        crate::config::AiProvider::Groq => "groq",
         crate::config::AiProvider::Mock => "mock",
     };
 

@@ -12,7 +12,7 @@ interface TaskPromptFormProps {
 
 const EXAMPLE_PROMPTS: Record<string, string[]> = {
   'code-auditor': [
-    'Audit the following Solana Anchor program for security vulnerabilities and optimize gas usage.',
+    'Audit this public GitHub repository for security vulnerabilities: https://github.com/coral-xyz/anchor/blob/master/examples/tutorial/basic-0/programs/basic-0/src/lib.rs',
     'Review this smart contract for reentrancy attacks and access control issues.',
   ],
   'sentiment-analyst': [
@@ -39,19 +39,28 @@ const EXAMPLE_PROMPTS: Record<string, string[]> = {
 
 export default function TaskPromptForm({ agent, onJobCreated }: TaskPromptFormProps) {
   const [prompt, setPrompt] = useState('');
+  const [githubUrl, setGithubUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { connected } = useWallet();
   const { createJob, isExecuting } = useJobs();
 
+  const isCipher = agent.id === 'code-auditor';
   const examples = EXAMPLE_PROMPTS[agent.id] || [];
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!prompt.trim() || !connected || isExecuting) return;
+    
+    let finalPrompt = prompt.trim();
+    if (isCipher) {
+      if (!githubUrl.trim()) return;
+      finalPrompt = `Analyze this GitHub repository: ${githubUrl.trim()}\n\nAdditional Instructions: ${prompt.trim() || 'Perform a standard security audit.'}`;
+    }
+
+    if (!finalPrompt || !connected || isExecuting) return;
 
     setIsSubmitting(true);
     try {
-      await createJob(agent, prompt.trim(), agent.priceSOL);
+      await createJob(agent, finalPrompt, agent.priceSOL);
       onJobCreated();
     } finally {
       setIsSubmitting(false);
@@ -60,22 +69,55 @@ export default function TaskPromptForm({ agent, onJobCreated }: TaskPromptFormPr
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {/* Prompt input */}
-      <div className="space-y-2">
-        <label className="font-mono text-[11px] text-muted-foreground tracking-wider uppercase block">
-          Task Prompt
-        </label>
-        <textarea
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          placeholder={`Describe the task for ${agent.name}...`}
-          className="w-full h-32 px-4 py-3 rounded-lg bg-void border border-border text-foreground font-mono text-sm placeholder:text-muted-foreground/50 resize-none focus-neon transition-all"
-          disabled={isSubmitting}
-        />
-      </div>
+      {isCipher ? (
+        <>
+          {/* GitHub URL Input */}
+          <div className="space-y-2">
+            <label className="font-mono text-[11px] text-primary tracking-wider uppercase block">
+              GitHub Repository URL
+            </label>
+            <input
+              type="text"
+              value={githubUrl}
+              onChange={(e) => setGithubUrl(e.target.value)}
+              placeholder="https://github.com/user/repo/blob/main/contract.rs"
+              className="w-full px-4 py-3 rounded-lg bg-void border border-border text-foreground font-mono text-sm placeholder:text-muted-foreground/30 focus-neon transition-all"
+              disabled={isSubmitting}
+            />
+          </div>
+
+          {/* Optional Instructions */}
+          <div className="space-y-2">
+            <label className="font-mono text-[11px] text-muted-foreground tracking-wider uppercase block">
+              Additional Instructions (Optional)
+            </label>
+            <textarea
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder="e.g. Focus on reentrancy vulnerabilities..."
+              className="w-full h-24 px-4 py-3 rounded-lg bg-void border border-border text-foreground font-mono text-sm placeholder:text-muted-foreground/30 resize-none focus-neon transition-all"
+              disabled={isSubmitting}
+            />
+          </div>
+        </>
+      ) : (
+        /* Standard Prompt Input */
+        <div className="space-y-2">
+          <label className="font-mono text-[11px] text-muted-foreground tracking-wider uppercase block">
+            Task Prompt
+          </label>
+          <textarea
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            placeholder={`Describe the task for ${agent.name}...`}
+            className="w-full h-32 px-4 py-3 rounded-lg bg-void border border-border text-foreground font-mono text-sm placeholder:text-muted-foreground/50 resize-none focus-neon transition-all"
+            disabled={isSubmitting}
+          />
+        </div>
+      )}
 
       {/* Example prompts */}
-      {examples.length > 0 && (
+      {examples.length > 0 && !isCipher && (
         <div className="space-y-1.5">
           <span className="font-mono text-[10px] text-muted-foreground tracking-wider uppercase">
             Examples

@@ -32,7 +32,7 @@ interface ExecutionTerminalProps {
 }
 
 export default function ExecutionTerminal({ onBack }: ExecutionTerminalProps) {
-  const { activeJob, executionSteps, isExecuting } = useJobs();
+  const { activeJob, executionSteps, isExecuting, clearActiveJob } = useJobs();
   const resultRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -247,6 +247,20 @@ export default function ExecutionTerminal({ onBack }: ExecutionTerminalProps) {
                 {activeJob.resultHash}
               </span>
             </div>
+          </div>
+
+          {/* Rehire / New Audit Button */}
+          <div className="px-4 py-4 border-t border-border bg-secondary/20">
+            <button
+              onClick={() => {
+                clearActiveJob();
+                if (onBack) onBack();
+              }}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded bg-primary text-primary-foreground font-mono text-xs font-bold tracking-widest uppercase hover:shadow-neon transition-all"
+            >
+              <Terminal className="h-3.5 w-3.5" />
+              Start New Audit
+            </button>
           </div>
         </motion.div>
       )}

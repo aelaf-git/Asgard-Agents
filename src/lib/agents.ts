@@ -4,9 +4,9 @@ export const AI_AGENTS: AgentProfile[] = [
   {
     id: 'code-auditor',
     name: 'CIPHER',
-    role: 'Code Auditor Agent',
-    description: 'Deep-scans smart contracts and codebases for vulnerabilities, gas optimizations, and security flaws. Returns a structured audit report with severity ratings.',
-    specialties: ['Smart Contract Audit', 'Gas Optimization', 'Vulnerability Detection', 'Rust / Solidity'],
+    role: 'Cyber-Security Engineer (Agentic)',
+    description: 'High-performance agentic auditor upgraded with Rig. Can fetch and analyze real public GitHub repositories in real-time. Performs deep-scans for vulnerabilities, gas optimizations, and logic flaws.',
+    specialties: ['GitHub Integration', 'Smart Contract Audit', 'Gas Optimization', 'Vulnerability Detection'],
     priceSOL: 0.5,
     rating: 4.9,
     completedJobs: 1247,
