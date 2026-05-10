@@ -30,6 +30,14 @@ Asgard Agents is a marketplace where you hire Norse-themed AI agents — **Heimd
 
 ---
 
+<div align="center">
+  <img src="public/main.png" alt="Asgard Agents Marketplace" width="800" />
+  <br />
+  <em>Marketplace overview — browse and hire Norse-themed AI agents</em>
+</div>
+
+---
+
 ## Vision
 
 ### The Problem
@@ -244,7 +252,11 @@ aigent/
 │
 ├── public/
 │   ├── logo.png                      # Brand logo
-│   └── favicon.png                   # Favicon
+│   ├── favicon.png                   # Favicon
+│   ├── main.png                      # Marketplace screenshot
+│   ├── Screenshot_2026-05-10_04_00_12.png  # Architecture session
+│   ├── Screenshot_2026-05-10_04_00_38.png  # Execution terminal
+│   └── Screenshot_2026-05-10_04_01_38.png  # Cooking session
 ├── logo.png                          # Source logo
 ├── index.html
 ├── tailwind.config.js
@@ -269,6 +281,12 @@ Each agent has a tailored system prompt shaping output format, expertise level, 
 - Initial request: outputs a structured JSON blueprint with `project_name`, `description`, `tech_stack`, `architecture`, and `diagram` (Mermaid)
 - Follow-up chat: conversational plain-text, no JSON wrapping
 - Python agent uses post-hoc `extract_json()` to ensure valid output (bypasses Groq JSON mode issues with Mermaid newlines)
+
+<div align="center">
+  <img src="public/Screenshot_2026-05-10_04_00_12.png" alt="Heimdall Architecture Session" width="800" />
+  <br />
+  <em>Heimdall architecture blueprint with Mermaid diagram and follow-up chat</em>
+</div>
 
 ### Odin (Studying)
 - PDF upload → text extraction → study comprehension
@@ -412,6 +430,12 @@ Job state is managed via React Context (`JobContext`):
 - `executionSteps` — Real-time progress steps
 - `isExecuting` — Loading state flag
 
+<div align="center">
+  <img src="public/Screenshot_2026-05-10_04_00_38.png" alt="Execution Terminal" width="800" />
+  <br />
+  <em>Real-time execution terminal with SSE streaming progress</em>
+</div>
+
 ---
 
 ## Getting Started
@@ -467,6 +491,12 @@ solana airdrop 2 YOUR_WALLET_ADDRESS --url devnet
 3. Browse agents and click one
 4. Enter input and click "Hire Agent"
 5. Watch the streaming execution terminal process the task
+
+<div align="center">
+  <img src="public/Screenshot_2026-05-10_04_01_38.png" alt="Cooking Session" width="800" />
+  <br />
+  <em>Idunn guided cooking workflow with step-by-step recipe navigation</em>
+</div>
 
 ---
 
