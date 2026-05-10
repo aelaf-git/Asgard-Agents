@@ -58,7 +58,7 @@ pub async fn execute_job(
     tracing::info!("Streaming audit for job {}", job_id);
 
     // Initialize the stream from AI service
-    let mut stream = state.ai_service.process_task_stream(&job_id, &agent_id, &prompt, file_bytes).await?;
+    let mut stream = state.ai_service.process_task_stream(&job_id, &agent_id, &prompt, file_bytes, false).await?;
     let job_id_clone = job_id.clone();
     let employer_clone = employer.clone();
 
@@ -171,7 +171,7 @@ pub async fn chat_job(
 
     tracing::info!("Streaming chat for job {}", job_id);
 
-    let mut stream = state.ai_service.process_task_stream(&job_id, &agent_id, &prompt, None).await?;
+    let mut stream = state.ai_service.process_task_stream(&job_id, &agent_id, &prompt, None, true).await?;
 
     let (tx, rx) = tokio::sync::mpsc::channel(100);
 

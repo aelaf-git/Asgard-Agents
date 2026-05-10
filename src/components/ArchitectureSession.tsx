@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useJobs } from '@/lib/jobContext';
 import { JobStatus } from '@/lib/types';
 import { parseArchitecture } from '@/lib/architectureParser';
+import { chatWithAgentFull } from '@/lib/agentService';
 import type { Architecture } from '@/types/architecture';
 import {
   ArrowLeft,
@@ -14,17 +15,19 @@ import {
   ShieldCheck,
   Zap,
   Layers,
-  ChevronRight,
   Info,
   Terminal,
   Activity,
   Box,
-  FileCode,
   AlertTriangle,
+  Send,
+  Loader2,
+  User,
+  Bot,
+  MessageSquare,
 } from 'lucide-react';
 import mermaid from 'mermaid';
 
-// Initialize Mermaid
 mermaid.initialize({
   startOnLoad: true,
   theme: 'dark',
@@ -42,6 +45,11 @@ mermaid.initialize({
 interface ArchitectureSessionProps {
   onBack?: () => void;
   onNewSession: () => void;
+}
+
+interface ChatMsg {
+  role: 'user' | 'heimdall';
+  content: string;
 }
 
 const MermaidChart = ({ chart }: { chart: string }) => {
@@ -65,6 +73,11 @@ export default function ArchitectureSession({ onBack, onNewSession }: Architectu
   const { activeJob } = useJobs();
   const [arch, setArch] = useState<Architecture | null>(null);
   const [parseFailed, setParseFailed] = useState(false);
+  const [chatMessages, setChatMessages] = useState<ChatMsg[]>([]);
+  const [chatInput, setChatInput] = useState('');
+  const [isChatting, setIsChatting] = useState(false);
+  const chatBottomRef = useRef<HTMLDivElement>(null);
+  const chatInputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (activeJob?.status === JobStatus.Completed && activeJob.result && !arch && !parseFailed) {
@@ -77,6 +90,52 @@ export default function ArchitectureSession({ onBack, onNewSession }: Architectu
       }
     }
   }, [activeJob?.status, activeJob?.result, arch, parseFailed]);
+
+  useEffect(() => {
+    chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages]);
+
+  const sendChat = useCallback(async () => {
+    const q = chatInput.trim();
+    if (!q || isChatting || !activeJob) return;
+    setChatInput('');
+    setChatMessages(prev => [...prev, { role: 'user', content: q }]);
+    setIsChatting(true);
+
+    try {
+      const full = await chatWithAgentFull(activeJob.agent.id, q, activeJob.id, (chunk) => {
+        setChatMessages(prev => {
+          const updated = [...prev];
+          const last = updated[updated.length - 1];
+          if (last && last.role === 'heimdall') {
+            updated[updated.length - 1] = { ...last, content: last.content + chunk };
+          }
+          return updated;
+        });
+      });
+      if (full) {
+        setChatMessages(prev => {
+          const hasHeimdall = prev.some(m => m.role === 'heimdall');
+          if (!hasHeimdall) {
+            return [...prev, { role: 'heimdall', content: full }];
+          }
+          return prev;
+        });
+      }
+    } catch (err) {
+      console.error('[Heimdall] Chat error:', err);
+    } finally {
+      setIsChatting(false);
+      chatInputRef.current?.focus();
+    }
+  }, [chatInput, isChatting, activeJob]);
+
+  const handleChatKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendChat();
+    }
+  };
 
   if (!activeJob) return null;
 
@@ -139,7 +198,7 @@ export default function ArchitectureSession({ onBack, onNewSession }: Architectu
         <div className="absolute top-0 right-0 p-12 opacity-[0.03] pointer-events-none">
           <Layers size={300} className="text-primary" />
         </div>
-        
+
         <div className="relative z-10 space-y-6">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20">
@@ -151,7 +210,7 @@ export default function ArchitectureSession({ onBack, onNewSession }: Architectu
           <h1 className="text-4xl md:text-6xl font-bold text-foreground tracking-tight leading-tight">
             {arch.project_name}
           </h1>
-          
+
           <p className="text-lg text-muted-foreground max-w-3xl font-sans leading-relaxed border-l-2 border-primary/30 pl-6">
             {arch.summary}
           </p>
@@ -277,6 +336,74 @@ export default function ArchitectureSession({ onBack, onNewSession }: Architectu
             <p className="text-sm text-foreground/80 leading-relaxed font-sans">
               {arch.trade_offs}
             </p>
+          </section>
+
+          {/* ─── Chat Section ─────────────────────────────── */}
+          <section className="space-y-4 pt-6 border-t border-border/60">
+            <div className="flex items-center gap-2">
+              <MessageSquare className="h-4 w-4 text-primary" />
+              <h2 className="text-lg font-bold text-foreground">Ask Heimdall</h2>
+            </div>
+
+            {/* Messages */}
+            <div className="space-y-3 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
+              {chatMessages.length === 0 && (
+                <p className="font-mono text-xs text-muted-foreground py-4">
+                  Ask questions about the architecture — trade-offs, scaling, alternatives...
+                </p>
+              )}
+              <AnimatePresence mode="popLayout">
+                {chatMessages.map((msg, i) => (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    {msg.role === 'heimdall' && (
+                      <div className="flex-shrink-0 h-7 w-7 rounded-full bg-gradient-to-br from-primary to-primary/40 flex items-center justify-center mt-0.5">
+                        <Bot className="h-3.5 w-3.5 text-primary-foreground" />
+                      </div>
+                    )}
+                    <div className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+                      msg.role === 'user'
+                        ? 'bg-primary text-primary-foreground rounded-tr-sm'
+                        : 'bg-secondary/50 text-foreground rounded-tl-sm border border-border/40'
+                    }`}>
+                      <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                    </div>
+                    {msg.role === 'user' && (
+                      <div className="flex-shrink-0 h-7 w-7 rounded-full bg-secondary flex items-center justify-center mt-0.5 border border-border">
+                        <User className="h-3.5 w-3.5 text-muted-foreground" />
+                      </div>
+                    )}
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+              <div ref={chatBottomRef} />
+            </div>
+
+            {/* Input */}
+            <div className="flex gap-3 items-end">
+              <textarea
+                ref={chatInputRef}
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                onKeyDown={handleChatKeyDown}
+                placeholder="Ask Heimdall about the architecture..."
+                rows={1}
+                disabled={isChatting}
+                className="flex-1 px-4 py-3 rounded-xl bg-void border border-border text-foreground text-sm placeholder:text-muted-foreground/40 resize-none focus:outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/30 transition-all font-sans disabled:opacity-50"
+              />
+              <button
+                onClick={sendChat}
+                disabled={!chatInput.trim() || isChatting}
+                className="flex-shrink-0 h-11 w-11 rounded-xl bg-primary text-primary-foreground flex items-center justify-center hover:shadow-neon transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {isChatting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              </button>
+            </div>
           </section>
         </main>
       </div>

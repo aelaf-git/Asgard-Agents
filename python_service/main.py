@@ -6,7 +6,7 @@ from fastapi import FastAPI, Form, File, UploadFile
 from typing import Optional
 from sse_starlette.sse import EventSourceResponse
 
-from agents.heimdall.agent import stream_heimdall_task
+from agents.heimdall.agent import stream_heimdall_task, stream_heimdall_chat
 from agents.odin.agent import stream_odin_task
 from agents.idunn.agent import stream_idunn_task
 
@@ -17,13 +17,18 @@ async def execute_job(
     agent_id: str = Form(...),
     prompt: str = Form(...),
     job_id: str = Form(...),
+    chat: Optional[str] = Form(None),
     file: Optional[UploadFile] = File(None)
 ):
     async def event_generator():
         try:
             if agent_id == "heimdall":
-                async for chunk in stream_heimdall_task(prompt):
-                    yield {"data": chunk}
+                if chat == "true":
+                    async for chunk in stream_heimdall_chat(prompt):
+                        yield {"data": chunk}
+                else:
+                    async for chunk in stream_heimdall_task(prompt):
+                        yield {"data": chunk}
 
             elif agent_id in ("teacher", "odin"):
                 if file:

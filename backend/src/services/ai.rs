@@ -25,6 +25,7 @@ impl AiService {
         agent_id: &str,
         user_prompt: &str,
         file_bytes: Option<Vec<u8>>,
+        is_chat: bool,
     ) -> Result<BoxStream<'static, Result<String, AppError>>, AppError> {
         tracing::info!("Proxying task to Python Microservice for agent: {}", agent_id);
 
@@ -32,6 +33,10 @@ impl AiService {
             .text("job_id", job_id.to_string())
             .text("agent_id", agent_id.to_string())
             .text("prompt", user_prompt.to_string());
+
+        if is_chat {
+            form = form.text("chat", "true");
+        }
 
         if let Some(bytes) = file_bytes {
             let part = reqwest::multipart::Part::bytes(bytes)

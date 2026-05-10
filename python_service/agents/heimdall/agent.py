@@ -5,6 +5,16 @@ from typing import AsyncGenerator
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from langchain_groq import ChatGroq
 
+HEIMDALL_CHAT_PROMPT = """You are HEIMDALL, the All-Seeing System Architect of Asgard. You are advising a developer on their system architecture design.
+
+Respond conversationally and helpfully. Focus on:
+- Answering questions about system design decisions
+- Explaining architectural trade-offs and patterns
+- Suggesting improvements for scalability, security, performance
+- Clarifying technology choices and alternatives
+
+Be concise but thorough. Use plain text (not JSON). Include code snippets or architecture suggestions in markdown when helpful."""
+
 HEIMDALL_SYSTEM_PROMPT = """You are HEIMDALL, the All-Seeing System Architect of Asgard. You design flawless, planetary-scale software systems.
 
 You are a JSON engine. Output ONLY a valid JSON object with these exact fields:
@@ -162,3 +172,20 @@ async def stream_heimdall_task(prompt: str, conversation_history: list | None = 
                 "_raw": full_response[:2000],
             })
             yield clean
+
+
+async def stream_heimdall_chat(prompt: str) -> AsyncGenerator[str, None]:
+    llm = ChatGroq(
+        model="llama-3.3-70b-versatile",
+        temperature=0.7,
+        groq_api_key=os.getenv("AI_API_KEY"),
+    )
+
+    messages = [
+        SystemMessage(content=HEIMDALL_CHAT_PROMPT),
+        HumanMessage(content=prompt),
+    ]
+
+    async for chunk in llm.astream(messages):
+        if chunk.content:
+            yield chunk.content
