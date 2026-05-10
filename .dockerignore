@@ -9,8 +9,3 @@ venv
 .git
 .gitignore
 *.md
-Dockerfile*
-docker-compose.yml
-render.yaml
-supervisord.conf
-nginx.conf
