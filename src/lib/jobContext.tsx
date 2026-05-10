@@ -11,6 +11,7 @@ export function JobProvider({ children }: { children: ReactNode }) {
   const [activeJob, setActiveJob] = useState<Job | null>(null);
   const [executionSteps, setExecutionSteps] = useState<ExecutionStep[]>(INITIAL_STEPS);
   const [isExecuting, setIsExecuting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [ragProgress, setRagProgress] = useState<RagProgress | null>(null);
   const { sdk, publicKey } = useSolanaProgram();
 
@@ -66,6 +67,8 @@ export function JobProvider({ children }: { children: ReactNode }) {
         setJobs((prev) => [newJob, ...prev]);
         setActiveJob(newJob);
 
+        if (file) setUploadProgress(0);
+
         const { result, resultHash } = await executeAgentTask(
           agent,
           prompt,
@@ -78,9 +81,11 @@ export function JobProvider({ children }: { children: ReactNode }) {
             setRagProgress(null);
             setActiveJob(prev => prev ? { ...prev, result: (prev.result || "") + chunk } : null);
           },
-          (progress) => setRagProgress(progress)
+          (progress) => setRagProgress(progress),
+          (pct) => { if (pct < 100) setUploadProgress(pct); else setUploadProgress(null); }
         );
 
+        setUploadProgress(null);
         setRagProgress(null);
 
         const reviewJob: Job = {
@@ -93,8 +98,8 @@ export function JobProvider({ children }: { children: ReactNode }) {
         setActiveJob(reviewJob);
         setJobs((prev) => prev.map((j) => (j.id === jobId ? reviewJob : j)));
 
-        // Auto-approve escrow for Teacher agent immediately after indexing
-        if (agent.id === 'odin') {
+        // Auto-approve escrow for Teacher/Cooking agents immediately after generation/indexing
+        if (agent.id === 'odin' || agent.id === 'idunn') {
           try {
             const signature = await import('./agentService').then(m => m.finalizeAgentJob(jobId, publicKey.toString(), true));
             const finalizedJob: Job = {
@@ -162,6 +167,7 @@ export function JobProvider({ children }: { children: ReactNode }) {
           activeJob,
           executionSteps,
           isExecuting,
+          uploadProgress,
           ragProgress,
           createJob,
           cancelJob,

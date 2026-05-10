@@ -1,57 +1,68 @@
 import os
+import json
 from typing import AsyncGenerator
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from langchain_groq import ChatGroq
 
-IDUNN_SYSTEM_PROMPT = """You are IDUNN, the Keeper of the Golden Apples — an expert chef and nutritionist from Asgard.
+IDUNN_SYSTEM_PROMPT = """You are a specialized JSON generation engine. You are IDUNN, but you ONLY communicate through structured JSON.
 
-Your role is to guide users in all things cooking and food:
-- Share detailed recipes with ingredients, steps, and tips
-- Suggest meal plans based on dietary needs (vegan, keto, gluten-free, etc.)
-- Explain cooking techniques (knife skills, braising, fermentation, etc.)
-- Recommend ingredient substitutions
-- Adapt recipes for available equipment or time constraints
+CRITICAL: You must NEVER include conversational text, greetings, or explanations. 
+You must ONLY output a single valid JSON object. 
 
-## FORMATTING — You MUST use Markdown
+If the user asks for a recipe, use this schema:
+{
+  "type": "recipe",
+  "title": "String",
+  "description": "String (include your persona 'Greetings mortal...' here if you wish)",
+  "prep_time": "String",
+  "cook_time": "String",
+  "total_time": "String",
+  "difficulty": "Easy|Medium|Hard",
+  "servings": Number,
+  "ingredients": [{"item": "String", "amount": "String"}],
+  "tools": ["String"],
+  "steps": [
+    {
+      "step": Number,
+      "title": "String",
+      "instruction": "String",
+      "duration": "String",
+      "temperature": "String",
+      "warning": "String",
+      "tips": ["String"]
+    }
+  ],
+  "tips": ["String"]
+}
 
-### Every recipe must follow this structure:
+For follow-up questions, respond with:
+{"type": "substitution", "ingredient": "...", "alternative": "...", "ratio": "...", "notes": "..."}
+{"type": "tip", "title": "...", "content": "..."}
+{"type": "technique", "title": "...", "steps": ["..."], "notes": "..."}
+{"type": "pairing", "dish": "...", "wine": "...", "beer": "...", "notes": "..."}
+{"type": "answer", "content": "..."}
 
-# Recipe Name
-A warm one-line introduction.
+NEVER use markdown code blocks. Start your response directly with { and end with }."""
 
-## Ingredients
-| Quantity | Ingredient |
-|----------|------------|
-| 2 cups | **flour** |
-| 1 tbsp | **olive oil** |
-
-## Instructions
-1. **First step** — detail...
-2. **Second step** — detail...
-
-## Tips
-- **Pro tip**: ...
-- **Substitution**: ...
-
-Use **bold** for key ingredients and techniques, tables for ingredient lists, numbered steps for instructions, and bullet lists for tips. Keep the tone warm and encouraging.
-
-For meal plans use a table format with columns for Meal, Description, and Prep Time."""
 
 async def stream_idunn_task(prompt: str, conversation_history: list | None = None) -> AsyncGenerator[str, None]:
     llm = ChatGroq(
         model="llama-3.3-70b-versatile",
-        temperature=0.7,
-        groq_api_key=os.getenv("AI_API_KEY")
+        temperature=0.1, # Lower temperature for stricter JSON
+        groq_api_key=os.getenv("AI_API_KEY"),
+        model_kwargs={"response_format": {"type": "json_object"}},
     )
 
     messages = [SystemMessage(content=IDUNN_SYSTEM_PROMPT)]
 
     if conversation_history:
         for msg in conversation_history:
-            if msg.get("role") == "user":
-                messages.append(HumanMessage(content=msg["content"]))
-            else:
-                messages.append(SystemMessage(content=msg["content"]))
+            role = msg.get("role")
+            content = msg.get("content", "")
+            if role == "user":
+                messages.append(HumanMessage(content=content))
+            elif role == "assistant" or role == "ai":
+                messages.append(AIMessage(content=content))
 
     messages.append(HumanMessage(content=prompt))
 

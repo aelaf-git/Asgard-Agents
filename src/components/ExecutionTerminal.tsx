@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useJobs } from '@/lib/jobContext';
 import { JobStatus } from '@/lib/types';
 import { chatWithAgent } from '@/lib/agentService';
+import CookingSession from './CookingSession';
 import {
   CheckCircle2,
   Circle,
@@ -22,6 +23,8 @@ import {
   Layers,
   Database,
   MessageSquare,
+  CloudUpload,
+  ChefHat,
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -105,9 +108,9 @@ interface ExecutionTerminalProps {
 }
 
 // ─────────────────────────────────────────────
-// ODIN CHAT UI
+// AGENT CHAT UI (Odin / Idunn)
 // ─────────────────────────────────────────────
-function TeacherChatUI({ onBack, onNewSession }: { onBack?: () => void; onNewSession: () => void }) {
+function AgentChatUI({ onBack, onNewSession }: { onBack?: () => void; onNewSession: () => void }) {
   const { activeJob } = useJobs();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
@@ -115,6 +118,11 @@ function TeacherChatUI({ onBack, onNewSession }: { onBack?: () => void; onNewSes
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [initialResponseDone, setInitialResponseDone] = useState(false);
+
+  const agent = activeJob?.agent;
+  const agentName = agent?.name ?? 'Agent';
+  const displayName = agentName.charAt(0).toUpperCase() + agentName.slice(1).toLowerCase();
+  const isOdin = agent?.id === 'odin';
 
   useEffect(() => {
     if (!activeJob?.result || initialResponseDone) return;
@@ -166,12 +174,12 @@ function TeacherChatUI({ onBack, onNewSession }: { onBack?: () => void; onNewSes
         });
       });
     } catch (err) {
-      console.error('[Odin] Chat error:', err);
+      console.error(`[${displayName}] Chat error:`, err);
       setMessages(prev => {
         const updated = [...prev];
         const last = updated[updated.length - 1];
         if (last && last.role === 'teacher') {
-          updated[updated.length - 1] = { ...last, content: '*(Error: Could not reach the Teacher. Please try again.)*', streaming: false };
+          updated[updated.length - 1] = { ...last, content: `*(Error: Could not reach ${displayName}. Please try again.)*`, streaming: false };
         }
         return updated;
       });
@@ -180,7 +188,7 @@ function TeacherChatUI({ onBack, onNewSession }: { onBack?: () => void; onNewSes
       setMessages(prev => prev.map((m, i) => i === prev.length - 1 ? { ...m, streaming: false } : m));
       inputRef.current?.focus();
     }
-  }, [input, isStreaming, activeJob]);
+  }, [input, isStreaming, activeJob, displayName]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -190,6 +198,14 @@ function TeacherChatUI({ onBack, onNewSession }: { onBack?: () => void; onNewSes
   };
 
   if (!activeJob) return null;
+
+  const headerIcon = isOdin ? BookOpen : ChefHat;
+  const placeholderText = isOdin
+    ? 'Ask a question about your document… (Enter to send, Shift+Enter for new line)'
+    : 'Ask about the recipe, substitutions, or techniques… (Enter to send, Shift+Enter for new line)';
+  const emptyText = isOdin
+    ? { icon: BookOpen, text: 'Your PDF is being indexed…' }
+    : { icon: ChefHat, text: 'Idunn is preparing your recipe…' };
 
   return (
     <div className="flex flex-col h-[80vh] min-h-[600px] cyber-card rounded-xl overflow-hidden border border-primary/20"
@@ -205,10 +221,10 @@ function TeacherChatUI({ onBack, onNewSession }: { onBack?: () => void; onNewSes
           )}
           <div className="flex items-center gap-2.5">
             <div className="h-9 w-9 rounded-full bg-gradient-to-br from-primary to-primary/40 flex items-center justify-center shadow-neon">
-              <BookOpen className="h-4.5 w-4.5 text-primary-foreground" />
+              {React.createElement(headerIcon, { className: 'h-4.5 w-4.5 text-primary-foreground' })}
             </div>
             <div>
-              <p className="font-semibold text-foreground text-sm tracking-wide">Teacher</p>
+              <p className="font-semibold text-foreground text-sm tracking-wide">{displayName}</p>
             </div>
           </div>
         </div>
@@ -225,8 +241,8 @@ function TeacherChatUI({ onBack, onNewSession }: { onBack?: () => void; onNewSes
       <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5 custom-scrollbar">
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center py-12 space-y-3">
-            <BookOpen className="h-10 w-10 text-primary/30" />
-            <p className="text-muted-foreground font-mono text-sm">Your PDF is being indexed…</p>
+            {React.createElement(emptyText.icon, { className: 'h-10 w-10 text-primary/30' })}
+            <p className="text-muted-foreground font-mono text-sm">{emptyText.text}</p>
           </div>
         )}
 
@@ -281,7 +297,7 @@ function TeacherChatUI({ onBack, onNewSession }: { onBack?: () => void; onNewSes
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask a question about your document… (Enter to send, Shift+Enter for new line)"
+            placeholder={placeholderText}
             rows={2}
             disabled={isStreaming}
             className="flex-1 px-4 py-3 rounded-xl bg-void border border-border text-foreground text-sm placeholder:text-muted-foreground/50 resize-none focus:outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/30 transition-all font-sans leading-relaxed disabled:opacity-50"
@@ -542,10 +558,44 @@ function RagProcessingOverlay({ progress }: { progress: { step: string; pct: num
 }
 
 // ─────────────────────────────────────────────
+// UPLOAD PROGRESS OVERLAY
+// ─────────────────────────────────────────────
+function UploadProgressOverlay({ pct }: { pct: number }) {
+  return (
+    <div className="cyber-card rounded-xl overflow-hidden border border-primary/20"
+         style={{ background: 'linear-gradient(160deg, hsl(230 20% 6%) 0%, hsl(240 15% 8%) 100%)' }}>
+      <div className="px-6 py-8 space-y-6">
+        <div className="flex items-center gap-3">
+          <CloudUpload className="h-6 w-6 text-primary" />
+          <div>
+            <p className="font-semibold text-foreground text-sm">Uploading your document</p>
+            <p className="font-mono text-[11px] text-muted-foreground">Sending PDF to Odin...</p>
+          </div>
+        </div>
+        <div className="space-y-2">
+          <div className="h-2.5 rounded-full bg-void border border-border overflow-hidden">
+            <motion.div
+              className="h-full rounded-full bg-gradient-to-r from-primary to-neon-green"
+              initial={{ width: 0 }}
+              animate={{ width: `${pct}%` }}
+              transition={{ duration: 0.3, ease: 'easeOut' }}
+            />
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="font-mono text-[11px] text-muted-foreground">Encrypting & uploading...</span>
+            <span className="font-mono text-xs text-primary font-bold">{pct}%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
 // ROOT COMPONENT — Branches based on agent type
 // ─────────────────────────────────────────────
 export default function ExecutionTerminal({ onBack }: ExecutionTerminalProps) {
-  const { activeJob, clearActiveJob, ragProgress } = useJobs();
+  const { activeJob, clearActiveJob, uploadProgress, ragProgress } = useJobs();
 
   if (!activeJob) {
     return (
@@ -557,10 +607,15 @@ export default function ExecutionTerminal({ onBack }: ExecutionTerminalProps) {
     );
   }
 
-  const isTeacher = activeJob.agent.id === 'odin';
+  const isOdin = activeJob.agent.id === 'odin';
+  const isIdunn = activeJob.agent.id === 'idunn';
 
-  if (isTeacher) {
-    // Show RAG progress while indexing, then switch to chat
+  if (isOdin) {
+    // Odin: upload → RAG → chat
+    if (uploadProgress !== null) {
+      return <UploadProgressOverlay pct={uploadProgress} />;
+    }
+
     if (ragProgress && activeJob.status !== JobStatus.Completed) {
       return <RagProcessingOverlay progress={ragProgress} />;
     }
@@ -569,7 +624,15 @@ export default function ExecutionTerminal({ onBack }: ExecutionTerminalProps) {
       clearActiveJob();
       if (onBack) onBack();
     };
-    return <TeacherChatUI onBack={onBack} onNewSession={handleNewSession} />;
+    return <AgentChatUI onBack={onBack} onNewSession={handleNewSession} />;
+  }
+
+  if (isIdunn) {
+    const handleNewSession = () => {
+      clearActiveJob();
+      if (onBack) onBack();
+    };
+    return <CookingSession onBack={onBack} onNewSession={handleNewSession} />;
   }
 
   return <StandardTerminal onBack={onBack} />;

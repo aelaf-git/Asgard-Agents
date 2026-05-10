@@ -1,6 +1,5 @@
 import os
 import json
-import tempfile
 from typing import AsyncGenerator
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -69,17 +68,18 @@ async def stream_odin_task(prompt: str, pdf_bytes: bytes | None, job_id: str) ->
 
     # MODE 1: Initialization / Upload
     if pdf_bytes is not None:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_pdf:
-            temp_pdf.write(pdf_bytes)
-            temp_pdf_path = temp_pdf.name
+        upload_dir = os.path.join(os.path.dirname(__file__), "..", "..", "uploads")
+        os.makedirs(upload_dir, exist_ok=True)
+        pdf_path = os.path.join(upload_dir, f"{job_id}.pdf")
+        with open(pdf_path, "wb") as f:
+            f.write(pdf_bytes)
 
         import asyncio
 
         try:
             yield json.dumps({"type": "progress", "step": "Reading PDF pages...", "pct": 10})
 
-            # Run blocking IO in a thread so SSE can flush
-            loader = PyPDFLoader(temp_pdf_path)
+            loader = PyPDFLoader(pdf_path)
             docs = await asyncio.to_thread(loader.load)
 
             if not docs:
@@ -93,17 +93,14 @@ async def stream_odin_task(prompt: str, pdf_bytes: bytes | None, job_id: str) ->
 
             yield json.dumps({"type": "progress", "step": "Building vector index with embeddings...", "pct": 60})
 
-            # Embedding + FAISS build is the slowest step — run in thread
             embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
             vectorstore = await asyncio.to_thread(FAISS.from_documents, splits, embeddings)
 
-            # Save to global memory
             SESSION_INDEXES[job_id] = vectorstore
             SESSION_HISTORY[job_id] = []
 
             yield json.dumps({"type": "progress", "step": "Generating answer from document...", "pct": 85})
 
-            # First prompt processing
             retriever = vectorstore.as_retriever(search_kwargs={"k": 4})
             chat_prompt = ChatPromptTemplate.from_template(ODIN_PROMPT_TEMPLATE)
 
@@ -129,9 +126,10 @@ async def stream_odin_task(prompt: str, pdf_bytes: bytes | None, job_id: str) ->
             SESSION_HISTORY[job_id].append(HumanMessage(content=prompt))
             SESSION_HISTORY[job_id].append(AIMessage(content=full_response))
 
-        finally:
-            if os.path.exists(temp_pdf_path):
-                os.remove(temp_pdf_path)
+        except Exception:
+            if os.path.exists(pdf_path):
+                os.remove(pdf_path)
+            raise
         return
 
     # MODE 2: Continuous Chat

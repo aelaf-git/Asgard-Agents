@@ -27,7 +27,8 @@ export async function executeAgentTask(
   file: File | null,
   onStepUpdate: (stepIndex: number, status: ExecutionStep['status'], detail?: string) => void,
   onChunk: (chunk: string) => void,
-  onProgress?: (progress: { step: string; pct: number }) => void
+  onProgress?: (progress: { step: string; pct: number }) => void,
+  onUploadProgress?: (pct: number) => void
 ): Promise<{ result: string; resultHash: string }> {
   try {
     onStepUpdate(0, 'active', 'Validating task parameters...');
@@ -40,7 +41,7 @@ export async function executeAgentTask(
     onStepUpdate(1, 'completed', `${agent.name} initialized`);
 
     onStepUpdate(2, 'active', 'Processing...');
-    
+
     const formData = new FormData();
     formData.append('job_id', jobId);
     formData.append('agent_id', agent.id);
@@ -51,73 +52,92 @@ export async function executeAgentTask(
       formData.append('file', file);
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/job/execute`, {
-      method: 'POST',
-      body: formData,
-    });
+    const { result, resultHash } = await new Promise<{ result: string; resultHash: string }>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${API_BASE_URL}/api/job/execute`);
 
-    if (!response.ok) {
-      const err = await response.text();
-      throw new Error(`Execution failed: ${err}`);
-    }
+      let lastProcessed = 0;
+      let fullResult = "";
+      let resultHash = "";
+      let dataBuffer = ""; // Buffer for multi-line SSE data
 
-    const reader = response.body?.getReader();
-    const decoder = new TextDecoder();
-    let fullResult = "";
-    let resultHash = "";
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable && onUploadProgress) {
+          onUploadProgress(Math.round((e.loaded / e.total) * 100));
+        }
+      };
 
-    if (reader) {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n');
-        
-        for (let i = 0; i < lines.length; i++) {
-          const line = lines[i];
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6);
-            if (data.startsWith('{"type":"progress"')) {
-              try {
-                const p = JSON.parse(data);
-                if (p.type === 'progress' && onProgress) {
-                  onProgress({ step: p.step, pct: p.pct });
+      xhr.onreadystatechange = () => {
+        if (xhr.readyState === 3 || xhr.readyState === 4) {
+          const newData = xhr.responseText.slice(lastProcessed);
+          lastProcessed = xhr.responseText.length;
+
+          if (newData) {
+            const lines = newData.split('\n');
+            for (const line of lines) {
+              if (line.trim() === '') {
+                // Empty line signals end of event - dispatch buffer
+                if (dataBuffer) {
+                  const data = dataBuffer.trim();
+                  
+                  if (data.startsWith('{"type":"progress"')) {
+                    try {
+                      const p = JSON.parse(data);
+                      if (onProgress) onProgress({ step: p.step, pct: p.pct });
+                    } catch { /* ignore */ }
+                  } else if (data.startsWith('{"hash"') || data.startsWith('{"job_id"')) {
+                    try {
+                      const payload = JSON.parse(data);
+                      if (payload.hash && payload.job_id) {
+                        resultHash = payload.hash;
+                        onStepUpdate(2, 'completed', 'Complete');
+                      }
+                    } catch (e) { console.warn("Done payload parse failed", e); }
+                  } else {
+                    fullResult += dataBuffer;
+                    onChunk(dataBuffer);
+                  }
+                  dataBuffer = ""; // Clear for next event
                 }
-              } catch { /* non-critical: ignore malformed progress JSON */ }
-              continue;
-            }
+                continue;
+              }
 
-            if (data.startsWith('{"hash"') || data.startsWith('{"job_id"')) {
-              try {
-                const payload = JSON.parse(data);
-                if (payload.hash && payload.job_id) {
-                  resultHash = payload.hash;
-                  onStepUpdate(2, 'completed', 'Complete');
-                  continue;
-                }
-              } catch (e) {
-                console.warn("Failed to parse done payload", e);
+              if (line.startsWith('data: ')) {
+                const content = line.slice(6);
+                // If we already have data in the buffer, this is a continuation (newline)
+                dataBuffer += (dataBuffer ? '\n' : '') + content;
               }
             }
-            
-            fullResult += data;
-            onChunk(data);
           }
         }
-      }
-    }
+
+        if (xhr.readyState === 4) {
+          if (xhr.status === 200) {
+            // Flush any remaining data in buffer
+            if (dataBuffer) {
+              const data = dataBuffer.trim();
+              if (!data.startsWith('{"hash"') && !data.startsWith('{"job_id"')) {
+                fullResult += dataBuffer;
+                onChunk(dataBuffer);
+              }
+            }
+            resolve({ result: fullResult, resultHash });
+          } else {
+            reject(new Error(`Execution failed: ${xhr.statusText}`));
+          }
+        }
+      };
+
+      xhr.send(formData);
+    });
 
     onStepUpdate(3, 'active', 'Syncing...');
     await delay(800);
-    
-    if (!resultHash) {
-      resultHash = `hash_${Math.random().toString(16).slice(2, 10)}`;
-    }
-    
-    onStepUpdate(3, 'completed', `Verified: ${resultHash.slice(0, 12)}...`);
 
-    return { result: fullResult, resultHash };
+    const finalHash = resultHash || `hash_${Math.random().toString(16).slice(2, 10)}`;
+    onStepUpdate(3, 'completed', `Verified: ${finalHash.slice(0, 12)}...`);
+
+    return { result, resultHash: finalHash };
 
   } catch (error) {
     console.error("[Asgard Bridge] Error:", error);
@@ -173,25 +193,111 @@ export async function chatWithAgent(
   const decoder = new TextDecoder();
 
   if (reader) {
+    let dataBuffer = '';
     while (true) {
       const { done, value } = await reader.read();
-      if (done) break;
+      if (done) {
+        // Final flush
+        if (dataBuffer) {
+          const data = dataBuffer.trim();
+          if (!data.startsWith('{"hash"') && !data.startsWith('{"job_id"')) {
+            onChunk(dataBuffer);
+          }
+        }
+        break;
+      }
       
       const chunk = decoder.decode(value, { stream: true });
       const lines = chunk.split('\n');
       
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6);
-          if (data.startsWith('{"hash"') || data.startsWith('{"job_id"')) {
-             continue; // ignore done payload
+        if (line.trim() === '') {
+          if (dataBuffer) {
+            const data = dataBuffer.trim();
+            if (!data.startsWith('{"hash"') && !data.startsWith('{"job_id"')) {
+              onChunk(dataBuffer);
+            }
+            dataBuffer = '';
           }
-          onChunk(data);
+          continue;
+        }
+
+        if (line.startsWith('data: ')) {
+          const content = line.slice(6);
+          dataBuffer += (dataBuffer ? '\n' : '') + content;
         }
       }
     }
   }
+}
+
+export async function chatWithAgentFull(
+  agentId: string,
+  prompt: string,
+  jobId: string,
+  onChunk?: (chunk: string) => void
+): Promise<string> {
+  const formData = new FormData();
+  formData.append('job_id', jobId);
+  formData.append('agent_id', agentId);
+  formData.append('prompt', prompt);
+
+  const response = await fetch(`${API_BASE_URL}/api/job/chat`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`Chat failed: ${err}`);
+  }
+
+  const reader = response.body?.getReader();
+  const decoder = new TextDecoder();
+  let fullResult = '';
+  let dataBuffer = '';
+
+  if (reader) {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        // Final flush
+        if (dataBuffer) {
+          const data = dataBuffer.trim();
+          if (!data.startsWith('{"hash"') && !data.startsWith('{"job_id"')) {
+            fullResult += dataBuffer;
+            onChunk?.(dataBuffer);
+          }
+        }
+        break;
+      }
+
+      const chunk = decoder.decode(value, { stream: true });
+      const lines = chunk.split('\n');
+
+      for (const line of lines) {
+        if (line.trim() === '') {
+          if (dataBuffer) {
+            const data = dataBuffer.trim();
+            if (!data.startsWith('{"hash"') && !data.startsWith('{"job_id"')) {
+              fullResult += dataBuffer;
+              onChunk?.(dataBuffer);
+            }
+            dataBuffer = '';
+          }
+          continue;
+        }
+
+        if (line.startsWith('data: ')) {
+          const content = line.slice(6);
+          dataBuffer += (dataBuffer ? '\n' : '') + content;
+        }
+      }
+    }
+  }
+
+  return fullResult;
 }
 
 function delay(ms: number): Promise<void> {

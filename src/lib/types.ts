@@ -54,6 +54,7 @@ export interface JobContextType {
   activeJob: Job | null;
   executionSteps: ExecutionStep[];
   isExecuting: boolean;
+  uploadProgress: number | null;
   ragProgress: RagProgress | null;
   createJob: (agent: AgentProfile, prompt: string, amount: number, file?: File | null) => Promise<void>;
   cancelJob: (jobId: string) => void;
