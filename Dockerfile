@@ -1,4 +1,11 @@
-FROM node:22-alpine AS frontend-builder
+# Debian slim: Solana wallet deps pull in `usb` (node-gyp). Alpine/musl often breaks here;
+# node-gyp also expects a `python` executable — bookworm provides python3 only.
+FROM node:22-bookworm-slim AS frontend-builder
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 make g++ libusb-1.0-0-dev \
+    && ln -sf /usr/bin/python3 /usr/bin/python \
+    && rm -rf /var/lib/apt/lists/*
+ENV PYTHON=/usr/bin/python3
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
