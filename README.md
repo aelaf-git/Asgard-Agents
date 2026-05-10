@@ -2,7 +2,7 @@
 
 > **Hire Asgardian AI. Pay once. Settle On-Chain.**
 
-Asgard Agents is a marketplace where Odin (studying), Idunn (cooking), and Heimdall (coding) execute tasks and get paid through Solana escrow.
+Asgard Agents is a marketplace where you hire Norse-themed AI agents — **Heimdall** (coding/architecture), **Odin** (studying/learning), and **Idunn** (cooking) — who execute tasks via structured streaming responses and get paid through Solana escrow.
 
 ---
 
@@ -12,14 +12,14 @@ Asgard Agents is a marketplace where Odin (studying), Idunn (cooking), and Heimd
 - [Architecture Overview](#architecture-overview)
 - [Technical Stack](#technical-stack)
 - [Project Structure](#project-structure)
+- [AI Agents](#ai-agents)
 - [Smart Contract](#smart-contract)
 - [Rust Backend](#rust-backend)
+- [Python Microservice](#python-microservice)
 - [Frontend](#frontend)
 - [Getting Started](#getting-started)
 - [API Reference](#api-reference)
-- [AI Agents](#ai-agents)
 - [Security Model](#security-model)
-- [Advanced: Versioned Transactions & Lookup Tables](#advanced-versioned-transactions--lookup-tables)
 - [Deployment](#deployment)
 - [Contributing](#contributing)
 - [License](#license)
@@ -53,7 +53,7 @@ AIGENT reimagines the future of work by combining three paradigm shifts:
                                                ▼
                                         ┌──────────────┐
                                         │  AI Agent    │
-                                        │  (Rust Svc)  │
+                                        │  (Python)    │
                                         └──────┬───────┘
                                                │ complete_job
                                                │ + result_hash
@@ -79,16 +79,26 @@ The "Job Escrow" program manages the entire lifecycle of a job:
 ### Layer 2: Rust Backend (Axum)
 The "Agent Executioner" service:
 - Receives task prompts from the frontend
-- Routes to the correct AI provider (OpenAI, Grok, or mock)
+- Proxies streaming LLM requests to the Python microservice
 - Generates cryptographic proof-of-work hashes (SHA-256)
 - Signs `complete_job` transactions using a server-side keypair
 - Submits transactions to Solana
 
-### Layer 3: React Frontend (Vite)
+### Layer 3: Python Microservice (FastAPI)
+The "AI Brain":
+- Routes requests to per-agent Groq LLM handlers (llama-3.3-70b-versatile)
+- Heimdall agent outputs validated JSON with Mermaid diagrams
+- Idunn agent outputs structured recipe JSON with step-by-step workflow
+- Odin agent responds to PDF-based study questions
+- SSE streaming from FastAPI → Rust → Frontend
+
+### Layer 4: React Frontend (Vite)
 The cyberpunk-styled marketplace UI:
-- Agent marketplace with filtering and profiles
-- Task submission forms with example prompts
-- Real-time execution terminal with step-by-step progress
+- Agent marketplace with per-category input modes
+- Real-time execution terminal with SSE streaming
+- Architecture session with Mermaid diagram rendering (Heimdall)
+- Guided cooking workflow with step navigation, timer, ingredient checklist (Idunn)
+- PDF upload zone with chat interface (Odin)
 - Wallet connection and transaction signing
 - Job history dashboard
 
@@ -96,7 +106,7 @@ The cyberpunk-styled marketplace UI:
 ┌─────────────────────────────────────────────────────────────┐
 │                    FRONTEND (React/Vite)                     │
 │  ┌───────────┐  ┌───────────┐  ┌───────────┐  ┌─────────┐ │
-│  │ Marketplace│  │Agent Detail│  │ Dashboard │  │ Terminal │ │
+│  │ Marketplace│  │Agent Detail│  │ Dashboard │  │Terminal │ │
 │  └─────┬─────┘  └─────┬─────┘  └─────┬─────┘  └────┬────┘ │
 │        └───────────────┼──────────────┘              │      │
 │                        ▼                             │      │
@@ -109,18 +119,30 @@ The cyberpunk-styled marketplace UI:
             ┌────────────┼────────────┐
             ▼                         ▼
 ┌───────────────────┐    ┌────────────────────┐
-│  RUST BACKEND     │    │  SOLANA BLOCKCHAIN  │
-│  (Axum)           │    │                    │
-│  ┌─────────────┐  │    │  ┌──────────────┐  │
-│  │ AI Service   │  │    │  │ Job Escrow   │  │
-│  │ (LLM API)   │  │    │  │ Program      │  │
-│  └──────┬──────┘  │    │  │              │  │
-│         ▼         │    │  │ - Jobs (PDA) │  │
-│  ┌─────────────┐  │    │  │ - Vaults     │  │
-│  │ Solana Svc  │──┼───▶│  │ - Escrow     │  │
-│  │ (Signer)    │  │    │  └──────────────┘  │
-│  └─────────────┘  │    │                    │
-└───────────────────┘    └────────────────────┘
+│  RUST BACKEND     │    │  PYTHON SERVICE    │
+│  (Axum)           │    │  (FastAPI)         │
+│  ┌─────────────┐  │    │  ┌─────────────┐  │
+│  │ AI Service   │──┼──▶│  │ Agent Router │  │
+│  │ (SSE Proxy) │  │    │  │ (Groq LLM)  │  │
+│  └──────┬──────┘  │    │  └─────────────┘  │
+│         ▼         │    └────────┬───────────┘
+│  ┌─────────────┐  │            │
+│  │ Solana Svc  │──┼───┐        │
+│  │ (Signer)    │  │   │        │
+│  └─────────────┘  │   │        │
+└───────────────────┘   │        │
+                        ▼        ▼
+                 ┌────────────────────┐
+                 │  SOLANA BLOCKCHAIN │
+                 │  ┌──────────────┐  │
+                 │  │ Job Escrow   │  │
+                 │  │ Program      │  │
+                 │  │              │  │
+                 │  │ - Jobs (PDA) │  │
+                 │  │ - Vaults     │  │
+                 │  │ - Escrow     │  │
+                 │  └──────────────┘  │
+                 └────────────────────┘
 ```
 
 ---
@@ -130,12 +152,15 @@ The cyberpunk-styled marketplace UI:
 | Layer | Technology | Purpose |
 |-------|-----------|---------|
 | Smart Contract | Rust, Anchor Framework | On-chain escrow logic, PDA vaults |
-| Backend | Rust, Axum, Tokio | AI task processing, transaction signing |
+| Backend | Rust, Axum, Tokio | Task processing, Solana tx signing |
+| AI Microservice | Python, FastAPI, Groq | LLM inference per agent |
 | Frontend | React 18, TypeScript, Vite | Marketplace UI, wallet integration |
 | Styling | Tailwind CSS, shadcn/ui | Cyberpunk dark theme, component library |
 | Solana SDK | @solana/web3.js, @coral-xyz/anchor | Blockchain interaction, IDL types |
 | Wallet | @solana/wallet-adapter-react | Phantom, Solflare, Backpack support |
-| AI Providers | OpenAI (GPT-4o), Grok (xAI) | Task execution intelligence |
+| LLM | Groq (llama-3.3-70b-versatile) | Task execution intelligence |
+| Streaming | SSE (Server-Sent Events) | Real-time chunked responses |
+| Diagrams | Mermaid | Architecture flow visualization |
 | Crypto | SHA-256 | Proof-of-work hash generation |
 
 ---
@@ -145,67 +170,109 @@ The cyberpunk-styled marketplace UI:
 ```
 aigent/
 ├── backend/                          # Rust backend (Axum)
-│   ├── Cargo.toml                    # Dependencies
-│   ├── .env.example                  # Environment template
+│   ├── Cargo.toml
+│   ├── .env.example
 │   └── src/
-│       ├── main.rs                   # Server entrypoint
-│       ├── config.rs                 # Configuration loader
-│       ├── error.rs                  # Error types
-│       ├── models.rs                 # Request/response models
+│       ├── main.rs
+│       ├── config.rs
+│       ├── error.rs
+│       ├── models.rs
 │       ├── routes/
 │       │   ├── mod.rs
-│       │   ├── health.rs             # GET /health
-│       │   ├── agent.rs              # GET /api/agent/info
-│       │   └── job.rs                # POST /api/job/execute, /complete
+│       │   ├── health.rs
+│       │   ├── agent.rs
+│       │   └── job.rs                # POST /api/job/execute, /chat
 │       └── services/
 │           ├── mod.rs
-│           ├── ai.rs                 # AI provider (OpenAI/Grok/Mock)
-│           └── solana.rs             # Solana transaction signing
+│           ├── ai.rs                 # SSE proxy to Python
+│           └── solana.rs
+│
+├── python_service/                   # Python AI microservice
+│   ├── main.py                       # FastAPI entrypoint + SSE streaming
+│   ├── requirements.txt
+│   └── agents/
+│       ├── heimdall/
+│       │   └── agent.py              # Architecture JSON + Mermaid
+│       ├── odin/
+│       │   └── agent.py              # Study comprehension
+│       └── idunn/
+│           └── agent.py              # Structured recipe JSON
 │
 ├── contracts/                        # Solana smart contract (Anchor)
-│   ├── programs/workspace/src/
-│   │   └── lib.rs                    # Job Escrow program
-│   ├── target/idl/
-│   │   └── workspace.json            # Generated IDL
-│   └── Anchor.toml                   # Anchor configuration
+│   └── programs/workspace/src/
+│       └── lib.rs
 │
 ├── src/                              # React frontend
 │   ├── components/
-│   │   ├── Header.tsx                # Navigation + wallet button
-│   │   ├── HeroSection.tsx           # Landing hero
-│   │   ├── AgentCard.tsx             # Agent marketplace card
-│   │   ├── CategoryFilter.tsx        # Agent category filter
-│   │   ├── TaskPromptForm.tsx        # Task submission form
-│   │   ├── ExecutionTerminal.tsx     # Real-time execution view
-│   │   ├── JobHistoryCard.tsx        # Job history item
-│   │   ├── ArchitectureDiagram.tsx   # Protocol flow diagram
-│   │   └── Footer.tsx                # Site footer
+│   │   ├── Header.tsx
+│   │   ├── HeroSection.tsx
+│   │   ├── AgentCard.tsx
+│   │   ├── CategoryFilter.tsx
+│   │   ├── TaskPromptForm.tsx        # Per-category input modes
+│   │   ├── ExecutionTerminal.tsx     # Agent routing hub
+│   │   ├── AgentChatUI.tsx           # Reusable chat UI (Odin)
+│   │   ├── ArchitectureSession.tsx   # Heimdall blueprint + chat + Mermaid
+│   │   ├── CookingSession.tsx        # Idunn guided recipe workflow
+│   │   ├── JobHistoryCard.tsx
+│   │   └── MermaidChart.tsx          # Mermaid diagram renderer
 │   ├── pages/
-│   │   ├── Index.tsx                 # Marketplace landing
-│   │   ├── AgentDetail.tsx           # Agent profile + hire
-│   │   ├── Dashboard.tsx             # Execution dashboard
-│   │   └── NotFound.tsx              # 404 page
+│   │   ├── Index.tsx
+│   │   ├── AgentDetail.tsx
+│   │   ├── Dashboard.tsx
+│   │   └── NotFound.tsx
 │   ├── hooks/
-│   │   └��─ useSolanaProgram.ts       # Anchor SDK hook
+│   │   └── useSolanaProgram.ts
 │   ├── lib/
-│   │   ├── types.ts                  # TypeScript types
-│   │   ├── agents.ts                 # Agent definitions
-│   │   ├── agentService.ts           # Client-side AI bridge (mock)
-│   │   ├── aigentEscrow.ts           # Solana program SDK
-│   │   ├── jobContext.tsx            # Job state management
-│   │   └── configAddress.ts          # Program addresses
-│   ├── idl/
-│   │   └── workspaceIDL.json         # Contract IDL
-│   ├── App.tsx                       # Root component + routing
-│   ├── main.tsx                      # Entrypoint
-│   └── index.css                     # Design system tokens
+│   │   ├── types.ts
+│   │   ├── agents.ts
+│   │   ├── agentService.ts           # XHR + SSE streaming client
+│   │   ├── architectureParser.ts     # Flexible JSON extraction with field aliases
+│   │   ├── recipeParser.ts           # Recipe JSON + follow-up parser
+│   │   ├── aigentEscrow.ts
+│   │   ├── jobContext.tsx
+│   │   └── configAddress.ts
+│   ├── types/
+│   │   ├── architecture.ts           # Architecture / Mermaid types
+│   │   └── recipe.ts                 # Recipe / FollowUp / Step types
+│   ├── App.tsx
+│   ├── main.tsx
+│   └── index.css
 │
-├── index.html                        # HTML template
-├── tailwind.config.js                # Tailwind configuration
-├── vite.config.ts                    # Vite configuration
-├── package.json                      # Node dependencies
-└── README.md                         # This file
+├── public/
+│   ├── logo.png                      # Brand logo
+│   └── favicon.png                   # Favicon
+├── logo.png                          # Source logo
+├── index.html
+├── tailwind.config.js
+├── vite.config.ts
+├── package.json
+└── README.md
 ```
+
+---
+
+## AI Agents
+
+| Agent | ID | Specialty | Input | Output | Price |
+|-------|----|-----------|-------|--------|-------|
+| **Heimdall** | `heimdall` | System architecture & coding | Text prompt | Validated JSON + Mermaid diagram + follow-up chat | 0.5 SOL |
+| **Odin** | `odin` | Studying & comprehension | PDF upload | Conversational study assistance | 0.3 SOL |
+| **Idunn** | `idunn` | Cooking & recipes | Dish name | Structured recipe JSON with guided step-by-step workflow | 0.2 SOL |
+
+Each agent has a tailored system prompt shaping output format, expertise level, and response structure. Streaming responses are accumulated on the frontend and parsed on completion.
+
+### Heimdall (Coding/Architecture)
+- Initial request: outputs a structured JSON blueprint with `project_name`, `description`, `tech_stack`, `architecture`, and `diagram` (Mermaid)
+- Follow-up chat: conversational plain-text, no JSON wrapping
+- Python agent uses post-hoc `extract_json()` to ensure valid output (bypasses Groq JSON mode issues with Mermaid newlines)
+
+### Odin (Studying)
+- PDF upload → text extraction → study comprehension
+- Conversational chat interface via `AgentChatUI`
+
+### Idunn (Cooking)
+- Recipe JSON schema: title, description, servings, prep/cook time, ingredients, step-by-step instructions, tips
+- `CookingSession` component renders: recipe header, ingredient checklist, step navigation with timer, progress tracker, follow-up cards with gradient-glow input
 
 ---
 
@@ -254,27 +321,16 @@ Deployed on **Solana Devnet**.
 - Transfers SOL from vault back to employer via PDA signing
 - Status set to `Cancelled`
 
-### Error Codes
-| Code | Message |
-|------|---------|
-| `InvalidTaskHash` | Task hash must be 64 characters or less |
-| `InvalidResultHash` | Result hash must be 64 characters or less |
-| `InvalidAmount` | Amount must be greater than 0 |
-| `UnauthorizedAgent` | Only the designated agent can complete this job |
-| `UnauthorizedEmployer` | Only the employer can cancel this job |
-| `JobNotCreated` | Job is not in Created status |
-| `TimeoutNotReached` | Cancellation timeout has not been reached |
-
 ---
 
 ## Rust Backend
 
 ### Overview
 
-The Rust backend is built with **Axum** (async HTTP framework) and **Tokio** (async runtime). It serves as the "Agent Executioner" — the server-side brain that:
+Built with **Axum** and **Tokio**. Serves as the "Agent Executioner":
 
 1. Holds the AI agent's private keypair securely
-2. Processes tasks via LLM APIs (OpenAI GPT-4o or Grok)
+2. Proxies streaming LLM requests to the Python microservice
 3. Generates SHA-256 proof-of-work hashes
 4. Signs and submits `complete_job` transactions to Solana
 
@@ -284,39 +340,31 @@ The Rust backend is built with **Axum** (async HTTP framework) and **Tokio** (as
 |--------|------|-------------|
 | `GET` | `/health` | Liveness check with agent pubkey |
 | `GET` | `/api/agent/info` | Agent metadata and supported types |
-| `POST` | `/api/job/execute` | Execute AI task (off-chain processing) |
+| `POST` | `/api/job/execute` | Execute AI task (SSE stream to frontend) |
+| `POST` | `/api/job/chat` | Follow-up chat with agent (SSE stream) |
 | `POST` | `/api/job/complete` | Sign `complete_job` on Solana |
-| `GET` | `/api/job/status/:id` | Check job status |
 
-### AI Providers
+The backend runs on `http://localhost:3001` and proxies AI requests to the Python service at `http://localhost:8000`.
 
-The backend supports three AI providers:
+---
 
-| Provider | Config Value | API Endpoint |
-|----------|-------------|--------------|
-| OpenAI | `openai` | `api.openai.com/v1/chat/completions` |
-| Grok (xAI) | `grok` | `api.x.ai/v1/chat/completions` |
-| Mock | `mock` | In-process simulation (no API key needed) |
+## Python Microservice
 
-Each agent type has a specialized system prompt that shapes the AI's response format and expertise.
+### Overview
 
-### Running the Backend
+Built with **FastAPI**. Each agent type has a dedicated handler in `python_service/agents/`:
 
-```bash
-cd backend
+- **Heimdall**: Streams validated JSON architecture blueprints with Mermaid diagrams; separate chat handler for conversational follow-ups
+- **Odin**: PDF text extraction + study comprehension via Groq
+- **Idunn**: Structured recipe JSON generation with Groq `response_format: json_object`
 
-# Copy environment template
-cp .env.example .env
-# Edit .env with your keys
+### Endpoints
 
-# Build and run
-cargo run
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/v1/chat/completions` | SSE stream from Groq LLM |
 
-# Or run in release mode
-cargo run --release
-```
-
-The server starts on `http://localhost:3001`.
+The service uses `llama-3.3-70b-versatile` via Groq for all agents.
 
 ---
 
@@ -332,19 +380,25 @@ The frontend uses a cyberpunk aesthetic inspired by Tron and Blade Runner:
 - **JetBrains Mono** — Monospace font for data and terminal views
 - **Inter** — Sans-serif font for body text
 
-All colors are defined as CSS custom properties in `index.css` and consumed via Tailwind tokens — no hardcoded colors anywhere in components.
-
 ### Key Components
 
 | Component | Purpose |
 |-----------|---------|
-| `HeroSection` | Landing hero with protocol stats |
-| `AgentCard` | Marketplace agent card with status, rating, price |
-| `CategoryFilter` | Filter agents by type (Code/Security/Analysis/Creative) |
-| `TaskPromptForm` | Task prompt textarea with example prompts |
-| `ExecutionTerminal` | Real-time step-by-step execution view |
-| `JobHistoryCard` | Past job summary with status and TX link |
-| `ArchitectureDiagram` | Protocol flow visualization |
+| `TaskPromptForm` | Per-category input: cooking (dish name text), studying (PDF dropzone), coding (system description) |
+| `ExecutionTerminal` | Routes to correct UI: Odin → `AgentChatUI`, Idunn → `CookingSession`, Heimdall → `ArchitectureSession` |
+| `ArchitectureSession` | Heimdall blueprint + card-styled chat + Mermaid rendering via `mermaid.render()` with unique IDs and error fallback |
+| `CookingSession` | Guided recipe: header, ingredient checklist, step nav, timer, progress tracker, follow-up cards with gradient-glow input |
+| `AgentChatUI` | Reusable chat interface for Odin with message bubbles |
+| `MermaidChart` | Renders Mermaid diagrams with `securityLevel: 'loose'` and dark theme |
+
+### Streaming Architecture
+
+1. Frontend calls `chatWithAgentFull()` in `agentService.ts`
+2. XHR request sent to Rust backend (`/api/job/execute` or `/api/job/chat`)
+3. Rust proxies to Python FastAPI with `is_chat` parameter
+4. Python streams LLM tokens via SSE (`{"data": chunk}` )
+5. Rust re-wraps as `Event::default().data(...)` 
+6. Frontend accumulates chunks, parses on completion (JSON for Heimdall/Idunn, text for Odin)
 
 ### State Management
 
@@ -354,14 +408,6 @@ Job state is managed via React Context (`JobContext`):
 - `executionSteps` — Real-time progress steps
 - `isExecuting` — Loading state flag
 
-### Solana Integration
-
-The `useSolanaProgram` hook provides:
-- AnchorProvider setup with wallet adapter
-- `AigentEscrowSDK` instance for all on-chain interactions
-- PDA derivation for jobs and vaults
-- Transaction building and signing
-
 ---
 
 ## Getting Started
@@ -369,60 +415,54 @@ The `useSolanaProgram` hook provides:
 ### Prerequisites
 
 - **Node.js** 18+ and **npm**
-- **Rust** 1.75+ and **Cargo** (for backend)
+- **Rust** 1.75+ and **Cargo**
+- **Python** 3.10+ and **pip**
 - **Solana CLI** (optional, for keypair generation)
 - A Solana wallet (Phantom, Solflare, or Backpack)
 
 ### 1. Clone and Install Frontend
 
 ```bash
-# Install dependencies
 npm install
-
-# Start dev server
 npm run dev
 ```
 
 Frontend runs at `http://localhost:5173`.
 
-### 2. Setup Rust Backend
+### 2. Setup Python Microservice
+
+```bash
+cd python_service
+pip install -r requirements.txt
+python main.py
+```
+
+Python service runs at `http://localhost:8000`.
+
+### 3. Setup Rust Backend
 
 ```bash
 cd backend
-
-# Copy and edit environment config
 cp .env.example .env
-
-# For mock mode (no API key needed):
-# AI_PROVIDER=mock
-
-# For OpenAI:
-# AI_PROVIDER=openai
-# AI_API_KEY=sk-...
-
-# Generate an agent keypair (optional):
-solana-keygen new --outfile agent-keypair.json
-
-# Build and run
+# Edit .env with your keys
 cargo run
 ```
 
 Backend runs at `http://localhost:3001`.
 
-### 3. Fund Your Wallet (Devnet)
+### 4. Fund Your Wallet (Devnet)
 
 ```bash
-# Get Devnet SOL
 solana airdrop 2 YOUR_WALLET_ADDRESS --url devnet
 ```
 
-### 4. Connect and Test
+### 5. Connect and Test
 
 1. Open `http://localhost:5173`
 2. Connect your Phantom wallet (switch to Devnet)
 3. Browse agents and click one
-4. Enter a task prompt and click "Hire Agent"
-5. Watch the execution terminal process the task
+4. Enter input and click "Hire Agent"
+5. Watch the streaming execution terminal process the task
 
 ---
 
@@ -430,28 +470,33 @@ solana airdrop 2 YOUR_WALLET_ADDRESS --url devnet
 
 ### POST /api/job/execute
 
-Execute an AI task off-chain.
+Execute an AI task off-chain with SSE streaming.
 
 **Request:**
 ```json
 {
-  "job_id": "m5x2k1_abc123",
-  "agent_id": "code-auditor",
-  "prompt": "Audit this Anchor program for vulnerabilities...",
+  "job_id": "heimdall_abc123",
+  "agent_id": "heimdall",
+  "prompt": "Design a microservices architecture for a video platform",
   "employer": "9PJ8I...3555",
   "amount": 0.5
 }
 ```
 
-**Response:**
+**Response:** SSE stream of text/event-stream chunks.
+
+### POST /api/job/chat
+
+Follow-up chat with an agent (Heimdall only).
+
+**Request:**
 ```json
 {
-  "success": true,
-  "job_id": "m5x2k1_abc123",
-  "result": "## CIPHER AUDIT REPORT\n...",
-  "result_hash": "0x3a7f2b1c9e4d5a6b8c0f1e2d3a4b5c6d7e8f9a0b",
-  "processing_time_ms": 2847,
-  "agent_id": "code-auditor"
+  "job_id": "heimdall_abc123",
+  "agent_id": "heimdall",
+  "prompt": "Explain the database choice",
+  "employer": "9PJ8I...3555",
+  "amount": 0.0
 }
 ```
 
@@ -462,9 +507,9 @@ Sign and submit `complete_job` on Solana.
 **Request:**
 ```json
 {
-  "job_id": "m5x2k1_abc123",
+  "job_id": "heimdall_abc123",
   "employer": "9PJ8I...3555",
-  "result_hash": "0x3a7f2b1c9e4d5a6b8c0f1e2d3a4b5c6d7e8f9a0b"
+  "result_hash": "0x3a7f2b1c..."
 }
 ```
 
@@ -473,25 +518,10 @@ Sign and submit `complete_job` on Solana.
 {
   "success": true,
   "signature": "5KtP...7xYZ",
-  "job_id": "m5x2k1_abc123",
-  "result_hash": "0x3a7f2b1c9e4d5a6b8c0f1e2d3a4b5c6d7e8f9a0b"
+  "job_id": "heimdall_abc123",
+  "result_hash": "0x3a7f2b1c..."
 }
 ```
-
----
-
-## AI Agents
-
-| Agent | ID | Specialty | Price |
-|-------|----|-----------|-------|
-| **CIPHER** | `code-auditor` | Smart contract security audits | 0.5 SOL |
-| **PRISM** | `sentiment-analyst` | Market sentiment & on-chain analytics | 0.3 SOL |
-| **MUSE** | `content-creator` | Web3 content, threads, documentation | 0.2 SOL |
-| **NEXUS** | `architect` | System architecture & API design | 0.6 SOL |
-| **ORACLE** | `data-analyst` | DeFi data analysis & visualization | 0.35 SOL |
-| **FORGE** | `solidity-dev` | Anchor/Rust smart contract development | 0.75 SOL |
-
-Each agent has a tailored system prompt that shapes their output format, expertise level, and response structure.
 
 ---
 
@@ -501,11 +531,11 @@ Each agent has a tailored system prompt that shapes their output format, experti
 
 1. **Employer Protection** — SOL is locked in a PDA vault controlled by the program (not the agent). If the agent doesn't respond, the employer can cancel after the timeout period.
 
-2. **Agent Protection** — Once the agent submits a valid result hash, the SOL transfer is atomic and unstoppable. The agent is guaranteed payment upon proof delivery.
+2. **Agent Protection** — Once the agent submits a valid result hash, the SOL transfer is atomic and unstoppable.
 
-3. **Proof Immutability** — Both `task_hash` and `result_hash` are recorded on-chain in the `JobAccount`. Anyone can verify that the work was delivered by comparing hashes.
+3. **Proof Immutability** — Both `task_hash` and `result_hash` are recorded on-chain in the `JobAccount`.
 
-4. **Access Control** — `complete_job` requires the agent's signature. `cancel_job` requires the employer's signature AND timeout expiration. No third party can manipulate funds.
+4. **Access Control** — `complete_job` requires the agent's signature. `cancel_job` requires the employer's signature AND timeout expiration.
 
 ### Backend Security
 
@@ -516,104 +546,21 @@ Each agent has a tailored system prompt that shapes their output format, experti
 
 ---
 
-## Advanced: Versioned Transactions & Lookup Tables
-
-For advanced Solana knowledge, the program architecture supports **Versioned Transactions (v0)** and **Address Lookup Tables (ALTs)**:
-
-### Why Versioned Transactions?
-
-Legacy Solana transactions are limited to **35 accounts** per transaction. Versioned Transactions with ALTs compress account references, allowing up to **256 accounts** by referencing pre-registered lookup tables.
-
-### Implementation Approach
-
-```typescript
-import {
-  VersionedTransaction,
-  TransactionMessage,
-  AddressLookupTableProgram,
-  AddressLookupTableAccount,
-} from '@solana/web3.js';
-
-// 1. Create a Lookup Table with frequently used addresses
-const [createIx, lookupTableAddress] =
-  AddressLookupTableProgram.createLookupTable({
-    authority: payer.publicKey,
-    payer: payer.publicKey,
-    recentSlot: slot,
-  });
-
-// 2. Extend the table with program addresses
-const extendIx = AddressLookupTableProgram.extendLookupTable({
-  payer: payer.publicKey,
-  authority: payer.publicKey,
-  lookupTable: lookupTableAddress,
-  addresses: [
-    programId,
-    SystemProgram.programId,
-    // ... other frequently used addresses
-  ],
-});
-
-// 3. Build a V0 transaction with the lookup table
-const lookupTableAccount = await connection
-  .getAddressLookupTable(lookupTableAddress)
-  .then((res) => res.value);
-
-const messageV0 = new TransactionMessage({
-  payerKey: payer.publicKey,
-  recentBlockhash: blockhash,
-  instructions: [initializeJobIx, completeJobIx],
-}).compileToV0Message([lookupTableAccount]);
-
-const transactionV0 = new VersionedTransaction(messageV0);
-```
-
-### Benefits for AIGENT
-
-- **Batch Operations** — Multiple job operations in a single transaction
-- **Fee Optimization** — Smaller serialized transaction size = lower fees
-- **Composability** — Easier integration with other DeFi protocols (swap fees, rewards)
-
----
-
 ## Deployment
 
 ### Frontend (Vercel/Netlify)
 
 ```bash
-# Build for production
 npm run build
-
 # Output in dist/ — deploy to any static host
 ```
 
 ### Backend (Docker)
 
-```dockerfile
-FROM rust:1.75 as builder
-WORKDIR /app
-COPY . .
-RUN cargo build --release
-
-FROM debian:bookworm-slim
-RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
-COPY --from=builder /app/target/release/aigent-backend /usr/local/bin/
-CMD ["aigent-backend"]
-```
-
 ```bash
+cd backend
 docker build -t aigent-backend .
 docker run -p 3001:3001 --env-file .env aigent-backend
-```
-
-### Smart Contract (Mainnet)
-
-```bash
-# Switch to mainnet
-solana config set --url https://api.mainnet-beta.solana.com
-
-# Deploy (requires funded deployer wallet)
-anchor deploy --provider.cluster mainnet
 ```
 
 ---
@@ -638,6 +585,6 @@ MIT License. See [LICENSE](LICENSE) for details.
 
 **Built on Solana. Powered by DeAI.**
 
-*AIGENT — Where AI meets trustless execution.*
+*Asgard Agents — Where AI meets trustless execution.*
 
 </div>

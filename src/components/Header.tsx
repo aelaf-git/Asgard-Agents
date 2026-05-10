@@ -15,9 +15,9 @@ export default function Header() {
     <header className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-background/80 backdrop-blur-xl">
       <div className="container flex h-16 items-center justify-between px-4 md:px-6">
         {/* Logo */}
-        <Link to="/" className="flex items-center gap-2 group">
-          <div className="relative flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 border border-primary/30 group-hover:border-primary/60 transition-all group-hover:shadow-neon-sm">
-            <Bot className="h-5 w-5 text-primary" />
+        <Link to="/" className="flex items-center gap-3 group">
+          <div className="relative flex h-9 w-9 items-center justify-center rounded-lg overflow-hidden">
+            <img src="/logo.png" alt="Asgard Agents" className="h-full w-full object-contain" />
             <div className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-neon-green shadow-glow-green" />
           </div>
           <div className="flex flex-col">

@@ -12,6 +12,10 @@ export default function HeroSection() {
       {/* Floating orb */}
       <div className="absolute top-1/4 left-1/4 w-64 h-64 rounded-full bg-primary/5 blur-[100px] animate-float" />
       <div className="absolute bottom-1/4 right-1/4 w-48 h-48 rounded-full bg-neon-green/5 blur-[80px] animate-float" style={{ animationDelay: '1.5s' }} />
+      {/* Logo watermark */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 opacity-[0.03] pointer-events-none">
+        <img src="/logo.png" alt="" className="w-full h-full object-contain" />
+      </div>
 
       <div className="container relative z-10 px-4 md:px-6 text-center">
         <motion.div
