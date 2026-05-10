@@ -1,0 +1,45 @@
+services:
+  - type: web
+    name: asgard-agents-backend
+    env: docker
+    dockerfilePath: ./Dockerfile.backend
+    envVars:
+      - key: HOST
+        value: 0.0.0.0
+      - key: PORT
+        value: "3001"
+      - key: SOLANA_RPC_URL
+        value: https://api.devnet.solana.com
+      - key: PROGRAM_ID
+        value: C7kCbU8cVWmt7hqBjm3fGmHah2JuexFRijb63Vf97eq9
+      - key: PYTHON_API_URL
+        fromService:
+          type: web
+          name: asgard-agents-python
+          property: hostport
+
+  - type: web
+    name: asgard-agents-python
+    env: docker
+    dockerfilePath: ./Dockerfile.python
+    envVars:
+      - key: HOST
+        value: 0.0.0.0
+      - key: PORT
+        value: "8000"
+      - key: AI_API_KEY
+        sync: false
+      - key: AI_PROVIDER
+        value: groq
+
+  - type: web
+    name: asgard-agents-frontend
+    env: static
+    buildCommand: npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_BASE_URL
+        fromService:
+          type: web
+          name: asgard-agents-backend
+          property: hostport

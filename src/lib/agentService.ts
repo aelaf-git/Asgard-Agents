@@ -6,7 +6,7 @@ import { AgentProfile, ExecutionStep } from './types';
  * and on-chain settlement.
  */
 
-const API_BASE_URL = 'http://localhost:3001';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
 
 /**
  * Execute an agent task by calling the Rust backend with streaming support.

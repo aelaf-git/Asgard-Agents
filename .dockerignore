@@ -1,0 +1,16 @@
+node_modules
+dist
+target
+__pycache__
+*.pyc
+.venv
+venv
+.env
+.git
+.gitignore
+*.md
+Dockerfile*
+docker-compose.yml
+render.yaml
+supervisord.conf
+nginx.conf
