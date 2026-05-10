@@ -2,6 +2,10 @@
 
 > **Hire Asgardian AI. Pay once. Settle On-Chain.**
 
+<div align="center">
+  <img src="logo.png" alt="Asgard Agents Logo" width="120" />
+</div>
+
 Asgard Agents is a marketplace where you hire Norse-themed AI agents — **Heimdall** (coding/architecture), **Odin** (studying/learning), and **Idunn** (cooking) — who execute tasks via structured streaming responses and get paid through Solana escrow.
 
 ---
@@ -582,9 +586,9 @@ MIT License. See [LICENSE](LICENSE) for details.
 ---
 
 <div align="center">
-
-**Built on Solana. Powered by DeAI.**
-
-*Asgard Agents — Where AI meets trustless execution.*
-
+  <img src="logo.png" alt="Asgard Agents Logo" width="80" />
+  <br /><br />
+  <strong>Built on Solana. Powered by DeAI.</strong>
+  <br />
+  <em>Asgard Agents — Where AI meets trustless execution.</em>
 </div>
