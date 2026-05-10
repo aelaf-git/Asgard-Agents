@@ -43,6 +43,4 @@ export function getAgentById(id: string): AgentProfile | undefined {
   return AI_AGENTS.find((a) => a.id === id);
 }
 
-export function getAgentsByCategory(category: AgentProfile['category']): AgentProfile[] {
-  return AI_AGENTS.filter((a) => a.category === category);
-}
+

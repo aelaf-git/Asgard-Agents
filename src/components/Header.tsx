@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
-import { Bot, Zap, LayoutGrid, Terminal } from 'lucide-react';
+import { Zap, LayoutGrid, Terminal } from 'lucide-react';
 
 const NAV_ITEMS = [
   { path: '/', label: 'Marketplace', icon: LayoutGrid },

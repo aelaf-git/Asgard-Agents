@@ -101,7 +101,7 @@ export function JobProvider({ children }: { children: ReactNode }) {
         // Auto-approve escrow for Teacher/Cooking agents immediately after generation/indexing
         if (agent.id === 'odin' || agent.id === 'idunn') {
           try {
-            const signature = await import('./agentService').then(m => m.finalizeAgentJob(jobId, publicKey.toString(), true));
+            const signature = await finalizeAgentJob(jobId, publicKey.toString(), true);
             const finalizedJob: Job = {
               ...reviewJob,
               completeTxSignature: signature,
@@ -149,11 +149,6 @@ export function JobProvider({ children }: { children: ReactNode }) {
     }
   }, [activeJob, publicKey]);
 
-  const cancelJob = useCallback((jobId: string) => {
-    console.log("Cancel job requested for:", jobId);
-    // ... logic
-  }, [activeJob]);
-
   const clearActiveJob = useCallback(() => {
     setActiveJob(null);
     setExecutionSteps(INITIAL_STEPS);
@@ -170,7 +165,6 @@ export function JobProvider({ children }: { children: ReactNode }) {
           uploadProgress,
           ragProgress,
           createJob,
-          cancelJob,
           clearActiveJob,
           finalizeJob,
         }}

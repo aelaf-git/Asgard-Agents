@@ -5,6 +5,7 @@ import { JobStatus } from '@/lib/types';
 import { chatWithAgent } from '@/lib/agentService';
 import CookingSession from './CookingSession';
 import ArchitectureSession from './ArchitectureSession';
+import { MermaidRenderer } from './MermaidRenderer';
 import {
   CheckCircle2,
   Circle,
@@ -27,29 +28,6 @@ import {
   CloudUpload,
   ChefHat,
 } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import rehypeSanitize from 'rehype-sanitize';
-import mermaid from 'mermaid';
-
-mermaid.initialize({ startOnLoad: false, theme: 'dark' });
-
-const MermaidDiagram = ({ chart }: { chart: string }) => {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (ref.current && chart) {
-      try {
-        const id = `mermaid-${Math.random().toString(36).substr(2, 9)}`;
-        mermaid.render(id, chart).then((result) => {
-          if (ref.current) ref.current.innerHTML = result.svg;
-        }).catch(e => {
-          if (ref.current) ref.current.innerHTML = `<pre class="text-destructive text-xs">${e.message}</pre>`;
-        });
-      } catch (error) { console.error(error); }
-    }
-  }, [chart]);
-  return <div ref={ref} className="my-6 p-4 bg-void/50 rounded-lg border border-border overflow-x-auto flex justify-center w-full" />;
-};
 
 const MarkdownContent = ({ content }: { content: string }) => (
   <div className="prose prose-invert prose-sm max-w-none font-sans leading-relaxed">
@@ -60,7 +38,7 @@ const MarkdownContent = ({ content }: { content: string }) => (
         code({ className, children, ...props }) {
           const match = /language-(\w+)/.exec(className || '');
           const isMermaid = match && match[1] === 'mermaid';
-          if (isMermaid) return <MermaidDiagram chart={String(children).replace(/\n$/, '')} />;
+          if (isMermaid) return <MermaidRenderer chart={String(children).replace(/\n$/, '')} className="my-6 p-4 bg-void/50 rounded-lg border border-border overflow-x-auto flex justify-center w-full" />;
           const isBlock = match || String(children).includes('\n');
           return isBlock ? (
             <div className="bg-void p-4 rounded-lg my-3 overflow-x-auto border border-border/50">

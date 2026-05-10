@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use axum::{
-    extract::{Path, State},
+    extract::State,
     Json,
     response::sse::{Event, Sse},
 };
@@ -10,7 +10,7 @@ use std::convert::Infallible;
 use crate::AppState;
 use crate::error::AppError;
 use crate::models::{
-    ExecuteJobRequest, FinalizeJobRequest, CompleteJobOnchainResponse,
+    FinalizeJobRequest, CompleteJobOnchainResponse,
     PendingJob,
 };
 
@@ -130,19 +130,6 @@ pub async fn finalize_job(
         job_id: req.job_id,
         result_hash: pending.1.hash,
     }))
-}
-
-/// GET /api/job/status/:job_id — Check job execution status
-pub async fn job_status(
-    Path(job_id): Path<String>,
-) -> Json<crate::models::JobStatusResponse> {
-    Json(crate::models::JobStatusResponse {
-        job_id,
-        status: "pending".into(),
-        result: None,
-        result_hash: None,
-        completed_at: None,
-    })
 }
 
 /// POST /api/job/chat — Send a follow-up chat message (No escrow logic)

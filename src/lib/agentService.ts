@@ -8,13 +8,6 @@ import { AgentProfile, ExecutionStep } from './types';
 
 const API_BASE_URL = 'http://localhost:3001';
 
-export interface AgentExecutionResult {
-  result: string;
-  resultHash: string;
-  processingTime: number;
-  signature?: string;
-}
-
 /**
  * Execute an agent task by calling the Rust backend with streaming support.
  */

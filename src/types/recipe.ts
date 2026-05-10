@@ -64,11 +64,4 @@ export interface FollowUpAnswer {
 
 export type FollowUp = FollowUpTip | FollowUpSubstitution | FollowUpTechnique | FollowUpPairing | FollowUpAnswer;
 
-export interface CookingSessionState {
-  recipe: Recipe | null;
-  currentStep: number;
-  completedIngredients: string[];
-  completedSteps: number[];
-  followUps: FollowUp[];
-  isGenerating: boolean;
-}
+

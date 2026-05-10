@@ -219,11 +219,4 @@ impl SolanaService {
         Ok(signature.to_string())
     }
 
-    /// Check the SOL balance of the agent wallet
-    pub fn agent_balance(&self) -> Result<f64, AppError> {
-        let balance = self.rpc_client
-            .get_balance(&self.agent_keypair.pubkey())
-            .map_err(|e| AppError::SolanaError(format!("Failed to get balance: {}", e)))?;
-        Ok(balance as f64 / 1_000_000_000.0)
-    }
 }
