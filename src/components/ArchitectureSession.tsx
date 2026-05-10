@@ -22,25 +22,8 @@ import {
   AlertTriangle,
   Send,
   Loader2,
-  User,
-  Bot,
-  MessageSquare,
+  Cctv,
 } from 'lucide-react';
-import mermaid from 'mermaid';
-
-mermaid.initialize({
-  startOnLoad: true,
-  theme: 'dark',
-  themeVariables: {
-    primaryColor: '#00d2ff',
-    primaryTextColor: '#fff',
-    primaryBorderColor: '#00d2ff',
-    lineColor: '#00d2ff',
-    secondaryColor: '#3a7bd5',
-    tertiaryColor: '#10b981',
-  },
-  securityLevel: 'loose',
-});
 
 interface ArchitectureSessionProps {
   onBack?: () => void;
@@ -52,23 +35,64 @@ interface ChatMsg {
   content: string;
 }
 
-const MermaidChart = ({ chart }: { chart: string }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
+// ─── Mermaid Diagram (direct render) ──────────────────────────
+function MermaidChart({ chart }: { chart: string }) {
+  const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (containerRef.current && chart) {
-      containerRef.current.removeAttribute('data-processed');
-      mermaid.contentLoaded();
-    }
+    if (!ref.current || !chart) return;
+    import('mermaid').then((mermaid) => {
+      mermaid.default.initialize({
+        startOnLoad: false,
+        theme: 'dark',
+        themeVariables: {
+          primaryColor: '#00d2ff',
+          primaryTextColor: '#fff',
+          primaryBorderColor: '#00d2ff',
+          lineColor: '#00d2ff',
+          secondaryColor: '#3a7bd5',
+          tertiaryColor: '#10b981',
+        },
+        securityLevel: 'loose',
+      });
+      const id = `mermaid-${Math.random().toString(36).substr(2, 9)}`;
+      mermaid.default.render(id, chart).then((result) => {
+        if (ref.current) ref.current.innerHTML = result.svg;
+      }).catch((e: Error) => {
+        if (ref.current) ref.current.innerHTML = `<pre class="text-destructive text-xs font-mono p-4">Diagram Error: ${e.message}</pre>`;
+      });
+    });
   }, [chart]);
 
+  return <div ref={ref} className="overflow-x-auto bg-void/50 p-6 rounded-3xl border border-primary/20" />;
+}
+
+// ─── Heimdall Chat Card ──────────────────────────────────────
+function HeimdallChatCard({ msg }: { msg: ChatMsg }) {
   return (
-    <div className="mermaid overflow-x-auto bg-void/50 p-6 rounded-3xl border border-primary/20" ref={containerRef}>
-      {chart}
+    <div className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+      {msg.role === 'heimdall' && (
+        <div className="flex-shrink-0 h-8 w-8 rounded-full bg-gradient-to-br from-primary to-primary/40 flex items-center justify-center mt-1 shadow-sm">
+          <Cctv className="h-4 w-4 text-primary-foreground" />
+        </div>
+      )}
+      <div className={`max-w-[80%] rounded-2xl px-5 py-4 ${
+        msg.role === 'user'
+          ? 'bg-primary text-primary-foreground rounded-tr-sm'
+          : 'bg-secondary/60 text-foreground rounded-tl-sm border border-border/40'
+      }`}>
+        <p className="text-sm leading-relaxed whitespace-pre-wrap font-sans">{msg.content}</p>
+      </div>
+      {msg.role === 'user' && (
+        <div className="flex-shrink-0 h-8 w-8 rounded-full bg-secondary flex items-center justify-center mt-1 border border-border">
+          <Cctv className="h-4 w-4 text-muted-foreground" />
+        </div>
+      )}
     </div>
   );
-};
+}
 
+// ─── Main Component ──────────────────────────────────────────
 export default function ArchitectureSession({ onBack, onNewSession }: ArchitectureSessionProps) {
   const { activeJob } = useJobs();
   const [arch, setArch] = useState<Architecture | null>(null);
@@ -85,7 +109,7 @@ export default function ArchitectureSession({ onBack, onNewSession }: Architectu
       if (parsed) {
         setArch(parsed);
       } else {
-        console.error('[ArchitectureSession] parseArchitecture returned null for result:', activeJob.result.slice(0, 1000));
+        console.error('[ArchitectureSession] parseArchitecture returned null for:', activeJob.result.slice(0, 500));
         setParseFailed(true);
       }
     }
@@ -103,25 +127,27 @@ export default function ArchitectureSession({ onBack, onNewSession }: Architectu
     setIsChatting(true);
 
     try {
-      const full = await chatWithAgentFull(activeJob.agent.id, q, activeJob.id, (chunk) => {
+      let streamed = false;
+      await chatWithAgentFull(activeJob.agent.id, q, activeJob.id, (chunk) => {
+        streamed = true;
         setChatMessages(prev => {
           const updated = [...prev];
           const last = updated[updated.length - 1];
           if (last && last.role === 'heimdall') {
             updated[updated.length - 1] = { ...last, content: last.content + chunk };
+          } else {
+            updated.push({ role: 'heimdall', content: chunk });
           }
           return updated;
         });
       });
-      if (full) {
-        setChatMessages(prev => {
-          const hasHeimdall = prev.some(m => m.role === 'heimdall');
-          if (!hasHeimdall) {
-            return [...prev, { role: 'heimdall', content: full }];
-          }
-          return prev;
-        });
-      }
+      setChatMessages(prev => {
+        const hasHeimdall = prev.some(m => m.role === 'heimdall');
+        if (!streamed && !hasHeimdall) {
+          return [...prev, { role: 'heimdall', content: '' }];
+        }
+        return prev;
+      });
     } catch (err) {
       console.error('[Heimdall] Chat error:', err);
     } finally {
@@ -338,71 +364,57 @@ export default function ArchitectureSession({ onBack, onNewSession }: Architectu
             </p>
           </section>
 
-          {/* ─── Chat Section ─────────────────────────────── */}
-          <section className="space-y-4 pt-6 border-t border-border/60">
-            <div className="flex items-center gap-2">
-              <MessageSquare className="h-4 w-4 text-primary" />
-              <h2 className="text-lg font-bold text-foreground">Ask Heimdall</h2>
+          {/* ─── Live Architecture Advisor Chat ─────────────── */}
+          <section className="pt-12 space-y-8 border-t border-border/40">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="h-1.5 w-1.5 rounded-full bg-primary animate-ping" />
+              <h3 className="text-sm font-bold uppercase tracking-[0.2em] text-primary">Live Architecture Advisor</h3>
             </div>
 
             {/* Messages */}
-            <div className="space-y-3 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
+            <div className="space-y-4">
+              <AnimatePresence>
+                {chatMessages.map((msg, i) => (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    className="p-6 rounded-3xl bg-primary/5 border border-primary/20 backdrop-blur-sm"
+                  >
+                    <HeimdallChatCard msg={msg} />
+                  </motion.div>
+                ))}
+              </AnimatePresence>
               {chatMessages.length === 0 && (
                 <p className="font-mono text-xs text-muted-foreground py-4">
                   Ask questions about the architecture — trade-offs, scaling, alternatives...
                 </p>
               )}
-              <AnimatePresence mode="popLayout">
-                {chatMessages.map((msg, i) => (
-                  <motion.div
-                    key={i}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                  >
-                    {msg.role === 'heimdall' && (
-                      <div className="flex-shrink-0 h-7 w-7 rounded-full bg-gradient-to-br from-primary to-primary/40 flex items-center justify-center mt-0.5">
-                        <Bot className="h-3.5 w-3.5 text-primary-foreground" />
-                      </div>
-                    )}
-                    <div className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                      msg.role === 'user'
-                        ? 'bg-primary text-primary-foreground rounded-tr-sm'
-                        : 'bg-secondary/50 text-foreground rounded-tl-sm border border-border/40'
-                    }`}>
-                      <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
-                    </div>
-                    {msg.role === 'user' && (
-                      <div className="flex-shrink-0 h-7 w-7 rounded-full bg-secondary flex items-center justify-center mt-0.5 border border-border">
-                        <User className="h-3.5 w-3.5 text-muted-foreground" />
-                      </div>
-                    )}
-                  </motion.div>
-                ))}
-              </AnimatePresence>
               <div ref={chatBottomRef} />
             </div>
 
             {/* Input */}
-            <div className="flex gap-3 items-end">
-              <textarea
-                ref={chatInputRef}
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                onKeyDown={handleChatKeyDown}
-                placeholder="Ask Heimdall about the architecture..."
-                rows={1}
-                disabled={isChatting}
-                className="flex-1 px-4 py-3 rounded-xl bg-void border border-border text-foreground text-sm placeholder:text-muted-foreground/40 resize-none focus:outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/30 transition-all font-sans disabled:opacity-50"
-              />
-              <button
-                onClick={sendChat}
-                disabled={!chatInput.trim() || isChatting}
-                className="flex-shrink-0 h-11 w-11 rounded-xl bg-primary text-primary-foreground flex items-center justify-center hover:shadow-neon transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {isChatting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-              </button>
+            <div className="relative group">
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-primary to-neon-green rounded-2xl blur opacity-10 group-focus-within:opacity-30 transition duration-500" />
+              <div className="relative flex gap-3 p-2 rounded-2xl bg-void border border-border group-focus-within:border-primary/50 transition-all">
+                <textarea
+                  ref={chatInputRef}
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyDown={handleChatKeyDown}
+                  placeholder="Ask Heimdall about the architecture..."
+                  rows={1}
+                  disabled={isChatting}
+                  className="flex-1 px-4 py-3 bg-transparent border-none text-foreground text-sm placeholder:text-muted-foreground/30 focus:ring-0 resize-none font-sans"
+                />
+                <button
+                  onClick={sendChat}
+                  disabled={!chatInput.trim() || isChatting}
+                  className="h-12 w-12 rounded-xl bg-primary text-primary-foreground flex items-center justify-center hover:shadow-neon transition-all disabled:opacity-40"
+                >
+                  {isChatting ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+                </button>
+              </div>
             </div>
           </section>
         </main>

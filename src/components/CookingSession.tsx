@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useJobs } from '@/lib/jobContext';
 import { JobStatus } from '@/lib/types';
@@ -27,7 +27,6 @@ import {
   Info,
   Flame,
   Wine,
-  FlaskConical,
   BookOpen,
 } from 'lucide-react';
 
@@ -295,7 +294,6 @@ export default function CookingSession({ onBack, onNewSession }: CookingSessionP
   const [input, setInput] = useState('');
   const [isAsking, setIsAsking] = useState(false);
   const [parseFailed, setParseFailed] = useState(false);
-  const [renderError, setRenderError] = useState<string | null>(null);
   
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);

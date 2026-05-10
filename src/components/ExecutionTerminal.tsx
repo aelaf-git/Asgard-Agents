@@ -489,7 +489,6 @@ const RAG_STEPS = [
 ];
 
 function RagProcessingOverlay({ progress }: { progress: { step: string; pct: number } }) {
-  const currentStep = RAG_STEPS.findIndex(s => s.pct === Math.min(...RAG_STEPS.filter(x => progress.pct <= x.pct).map(x => x.pct)));
 
   return (
     <div className="cyber-card rounded-xl overflow-hidden border border-primary/20"

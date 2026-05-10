@@ -10,7 +10,7 @@ import { JobStatus } from '@/lib/types';
 
 export default function Dashboard() {
   const { connected, publicKey } = useWallet();
-  const { jobs, activeJob, clearActiveJob } = useJobs();
+  const { jobs } = useJobs();
 
   const completedJobs = jobs.filter((j) => j.status === JobStatus.Completed);
   const totalSpent = completedJobs.reduce((sum, j) => sum + j.amount, 0);
