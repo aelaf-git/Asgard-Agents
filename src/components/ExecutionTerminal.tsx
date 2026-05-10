@@ -4,6 +4,7 @@ import { useJobs } from '@/lib/jobContext';
 import { JobStatus } from '@/lib/types';
 import { chatWithAgent } from '@/lib/agentService';
 import CookingSession from './CookingSession';
+import ArchitectureSession from './ArchitectureSession';
 import {
   CheckCircle2,
   Circle,
@@ -609,6 +610,7 @@ export default function ExecutionTerminal({ onBack }: ExecutionTerminalProps) {
 
   const isOdin = activeJob.agent.id === 'odin';
   const isIdunn = activeJob.agent.id === 'idunn';
+  const isHeimdall = activeJob.agent.id === 'heimdall';
 
   if (isOdin) {
     // Odin: upload → RAG → chat
@@ -633,6 +635,14 @@ export default function ExecutionTerminal({ onBack }: ExecutionTerminalProps) {
       if (onBack) onBack();
     };
     return <CookingSession onBack={onBack} onNewSession={handleNewSession} />;
+  }
+
+  if (isHeimdall) {
+    const handleNewSession = () => {
+      clearActiveJob();
+      if (onBack) onBack();
+    };
+    return <ArchitectureSession onBack={onBack} onNewSession={handleNewSession} />;
   }
 
   return <StandardTerminal onBack={onBack} />;
